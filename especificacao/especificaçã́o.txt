@@ -1,4 +1,4 @@
-Quero postar notícias da Anatel no site da minha empresa, que é do setor de telecomunicações. Como a Anatel permite, será bastante útil para meus visitantes.
+Quero postar notícias da Anatel no site da minha empresa, feito em wordpress, que é do setor de telecomunicações. Como a Anatel permite, será bastante útil para meus visitantes.
 
 Meu site é feito em wordpress e a ideia é criar um integrador escrito em Python que vai usar o selenium para coletar os dados das notícias e gravar esses dados em uma base mongo.
 
@@ -9,6 +9,8 @@ Seletor: seletor para o selenium coletar o valor do campo
 Tipo: tipo de dados do campo, que será o tipo de dados do mongo
 Descrição: Uma descrição do que é o campo
 Pagina: Índice de notícias ou Página da Notícia
+
+Essa seria a primeira collection desse integrador. Penso algo simples, sem necessidade de gestão de usuários. Tudo sendo gerenciado via linha de comando dentro do servidor mesmo e atividades de banco de dados ou o script ou o DBA acessam para popular
 
 o primeiro passo é acessar o índice de notícias da Anatel. A Anatel usa a licença: Creative Commons Atribuição-SemDerivações 3.0 Não Adaptada, que permite usar os dados livremente, apenas citando a fonte e não alterando o conteúdo original. Atualizações futuras dos artigos são de responsabilidade de quem capta os dados.
 
@@ -24,3 +26,61 @@ Toda vez que a checagem for feita, verifica se a URL já está cadastrada, se si
 Acredito que uma collection apenas resolve tudo.
 Qual a ideia. Ter essa collection de controle. 5X ao dia entrarei no índice de notícias em busca de novas notícias.
 Havendo novas noticias, vou inserí-la numa base mongo com a configuração especificada no arquivo CSV.
+
+Resumo:
+
+URL: https://www.gov.br/anatel/pt-br/assuntos/noticias
+chave: URL notícia
+
+
+
+# #ultimas-noticias > ul.noticias.listagem-noticias-com-foto
+# #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1)
+# #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.imagem > img
+Coletar todos LI
+	- URL: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > h2 > a
+	- Titulo: URL.innertext
+	- SubTitulo: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.subtitulo-noticia
+	- Imagem: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.imagem > img
+	- Descricao: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > span > span.data
+
+FEITO ISSO VAMOS LINK POR LINK USANDO URL, se não encontrar URL - Retira do site da TOP
+Encontrou a URL, entrou na página:
+
+ARTIGO:
+
+titulo - #content > article > h1
+dataPublicacao - #plone-document-byline > span.documentPublished
+dataAtualizacao - #plone-document-byline > span.documentModified
+imagem: #media > img
+noticia: #parent-fieldname-text > div
+	[paragrafos] -> #parent-fieldname-text > div > p:nth-child(1-N)
+categoria: #formfield-form-widgets-categoria
+
+Aqui está o CSV:
+
+Field,Seletor,Tipo,Descrição,Pagina
+anatel_URL,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > h2 > a,Texto,URL da matéria coletada no índice de notícias,Índice de notícias
+anatel_Titulo,"//*[@id=""ultimas-noticias""]/ul[1]/li[1]/div[1]/h2/a/text()",Texto,Título do texto da URL,Índice de notícias
+anatel_SubTitulo,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.subtitulo-noticia,Texto,Termo ou Palavra que Representam a notícia,Índice de notícias
+anatel_ImagemChamada,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.imagem.mobile > img,Texto,Imagem reduzida que fica no indice de notícia ao lado da chamada da notícia,Índice de notícias
+anatel_Descricao,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > span > span.data,Texto,"Fica abaixo da URL, contém a data de publicação um traço e após o traço uma chamada a notícia",Índice de notícias
+anatel_DataPublicacao,#plone-document-byline > span.documentPublished,Data,Data da publicação,Página da Notícia
+anatel_DataAtualizacao,#plone-document-byline > span.documentModified,Data,Data de atualização caso exista atualização,Página da Notícia
+anatel_ImagemPrincipal,#media > img,Texto,URL da imagem principal da notícia,Página da Notícia
+anatel_TextMateria,#parent-fieldname-text > div,Texto,Texto principal da matéria,Página da Notícia
+anatel_Categoria,#formfield-form-widgets-categoria,Texto,Categoria da matéria,Página da Notícia
+
+
+
+--------
+
+.env
+
+MONGO_URI='mongodb://localhost:27017/?retryWrites=true&w=majority'
+DB_NAME=anatelnews -> nome da base
+NEWS_COLLECTION=anatelnews -> nome da collection
+USR_NAME= --> o banco de dados não tem user
+USR_PASSWD= --> o banco de dados não tem senha apenas com a URL se conecta
+SHOW_BROWSER=true --> vamos mostrar o browser a fins de teste incialmente
+
