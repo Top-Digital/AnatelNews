@@ -1,0 +1,11 @@
+Field,Seletor,Tipo,Descrição,Pagina
+anatel_URL,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > h2 > a,Texto,URL da matéria coletada no índice de notícias,Índice de notícias
+anatel_Titulo,"//*[@id=""ultimas-noticias""]/ul[1]/li[1]/div[1]/h2/a/text()",Texto,Título do texto da URL,Índice de notícias
+anatel_SubTitulo,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.subtitulo-noticia,Texto,Termo ou Palavra que Representam a notícia,Índice de notícias
+anatel_ImagemChamada,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.imagem.mobile > img,Texto,Imagem reduzida que fica no indice de notícia ao lado da chamada da notícia,Índice de notícias
+anatel_Descricao,#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > span > span.data,Texto,"Fica abaixo da URL, contém a data de publicação um traço e após o traço uma chamada a notícia",Índice de notícias
+anatel_DataPublicacao,#plone-document-byline > span.documentPublished,Data,Data da publicação,Página da Notícia
+anatel_DataAtualizacao,#plone-document-byline > span.documentModified,Data,Data de atualização caso exista atualização,Página da Notícia
+anatel_ImagemPrincipal,#media > img,Texto,URL da imagem principal da notícia,Página da Notícia
+anatel_TextMateria,#parent-fieldname-text > div,Texto,Texto principal da matéria,Página da Notícia
+anatel_Categoria,#formfield-form-widgets-categoria,Texto,Categoria da matéria,Página da Notícia

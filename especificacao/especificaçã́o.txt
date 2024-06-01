@@ -1,0 +1,26 @@
+Quero postar notícias da Anatel no site da minha empresa, que é do setor de telecomunicações. Como a Anatel permite, será bastante útil para meus visitantes.
+
+Meu site é feito em wordpress e a ideia é criar um integrador escrito em Python que vai usar o selenium para coletar os dados das notícias e gravar esses dados em uma base mongo.
+
+Fiz uma especificação que está em um arquivo CSV, que possui as seguintes colunas:
+
+Field: nome do campo que quero no mongodb
+Seletor: seletor para o selenium coletar o valor do campo
+Tipo: tipo de dados do campo, que será o tipo de dados do mongo
+Descrição: Uma descrição do que é o campo
+Pagina: Índice de notícias ou Página da Notícia
+
+o primeiro passo é acessar o índice de notícias da Anatel. A Anatel usa a licença: Creative Commons Atribuição-SemDerivações 3.0 Não Adaptada, que permite usar os dados livremente, apenas citando a fonte e não alterando o conteúdo original. Atualizações futuras dos artigos são de responsabilidade de quem capta os dados.
+
+Toda vez que a checagem for feita, verifica se a URL já está cadastrada, se sim acessa ela para checar existe data de atualização e se existir, será feito o seguinte:
+
+ - Se já estiver cadastrada no banco de dados, compare as datas. Se forem iguais, não faz nada e passa para a próxima url pára checar. Se forem diferentes, atualizar a matéria no banco e atualizar a data de atualização
+
+ - Se não estiver cadastrada, atualizar a matéria no banco e cadastrar a data de atualização
+
+ Se a URL estiver não estiver cadastrada, cadastrar no banco de dados
+
+
+Acredito que uma collection apenas resolve tudo.
+Qual a ideia. Ter essa collection de controle. 5X ao dia entrarei no índice de notícias em busca de novas notícias.
+Havendo novas noticias, vou inserí-la numa base mongo com a configuração especificada no arquivo CSV.

@@ -1,0 +1,24 @@
+URL: https://www.gov.br/anatel/pt-br/assuntos/noticias
+chave: URL notícia
+
+#ultimas-noticias > ul.noticias.listagem-noticias-com-foto
+Coletar todos LI
+	- URL: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > h2 > a
+	- Titulo: URL.innertext
+	- SubTitulo: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.subtitulo-noticia
+	- Imagem: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > div.imagem.mobile > img
+	- Descricao: #ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li:nth-child(1) > div.conteudo > span > span.data
+
+FEITO ISSO VAMOS LINK POR LINK USANDO URL, se não encontrar URL - Retira do site da TOP
+Encontrou a URL, entrou na página:
+
+ARTIGO:
+
+titulo - #content > article > h1
+dataPublicacao - #plone-document-byline > span.documentPublished
+dataAtualizacao - #plone-document-byline > span.documentModified
+imagem: #media > img
+noticia: #parent-fieldname-text > div
+	[paragrafos] -> #parent-fieldname-text > div > p:nth-child(1-N)
+categoria: #formfield-form-widgets-categoria
+
