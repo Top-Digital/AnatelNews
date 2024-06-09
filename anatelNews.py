@@ -1,5 +1,4 @@
 import os
-import time
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -38,15 +37,45 @@ def collect_news_index():
     news_elements = driver.find_elements(
         By.CSS_SELECTOR, '#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li')
 
-    for news in news_elements:
-        news_data = {
-            'anatel_URL': news.find_element(By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('href'),
-            'anatel_Titulo': news.find_element(By.CSS_SELECTOR, 'div.conteudo > h2 > a').text,
-            'anatel_SubTitulo': news.find_element(By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').text,
-            'anatel_ImagemChamada': news.find_element(By.CSS_SELECTOR, 'div.conteudo > div.imagem > img').get_attribute('src'),
-            'anatel_Descricao': news.find_element(By.CSS_SELECTOR, 'div.conteudo > span > span.data').text,
-        }
+    for index, news in enumerate(news_elements):
+        news_data = {}
+        try:
+            news_data['anatel_URL'] = news.find_element(
+                By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('href')
+        except Exception as e:
+            news_data['anatel_URL'] = ''
+            print(f"Error collecting URL at index {index}: {e}")
+
+        try:
+            news_data['anatel_Titulo'] = news.find_element(
+                By.CSS_SELECTOR, 'div.conteudo > h2 > a').text
+        except Exception as e:
+            news_data['anatel_Titulo'] = ''
+            print(f"Error collecting title at index {index}: {e}")
+
+        try:
+            news_data['anatel_SubTitulo'] = news.find_element(
+                By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').text
+        except Exception as e:
+            news_data['anatel_SubTitulo'] = ''
+            print(f"Error collecting subtitle at index {index}: {e}")
+
+        try:
+            news_data['anatel_ImagemChamada'] = news.find_element(
+                By.CSS_SELECTOR, 'div.conteudo > div.imagem.mobile > img').get_attribute('src')
+        except Exception as e:
+            news_data['anatel_ImagemChamada'] = ''
+            print(f"Error collecting image at index {index}: {e}")
+
+        try:
+            news_data['anatel_Descricao'] = news.find_element(
+                By.CSS_SELECTOR, 'div.conteudo > span > span.data').text
+        except Exception as e:
+            news_data['anatel_Descricao'] = ''
+            print(f"Error collecting description at index {index}: {e}")
+
         news_list.append(news_data)
+
     return news_list
 
 # Function to collect news details
@@ -54,13 +83,38 @@ def collect_news_index():
 
 def collect_news_details(news_url):
     driver.get(news_url)
-    news_details = {
-        'anatel_DataPublicacao': driver.find_element(By.CSS_SELECTOR, '#plone-document-byline > span.documentPublished').text,
-        'anatel_DataAtualizacao': driver.find_element(By.CSS_SELECTOR, '#plone-document-byline > span.documentModified').text,
-        'anatel_ImagemPrincipal': driver.find_element(By.CSS_SELECTOR, '#media > img').get_attribute('src'),
-        'anatel_TextMateria': driver.find_element(By.CSS_SELECTOR, '#parent-fieldname-text > div').text,
-        'anatel_Categoria': driver.find_element(By.CSS_SELECTOR, '#formfield-form-widgets-categoria').text,
-    }
+    news_details = {}
+
+    try:
+        news_details['anatel_DataPublicacao'] = driver.find_element(
+            By.CSS_SELECTOR, '#plone-document-byline > span.documentPublished').text
+    except:
+        news_details['anatel_DataPublicacao'] = ''
+
+    try:
+        news_details['anatel_DataAtualizacao'] = driver.find_element(
+            By.CSS_SELECTOR, '#plone-document-byline > span.documentModified').text
+    except:
+        news_details['anatel_DataAtualizacao'] = ''
+
+    try:
+        news_details['anatel_ImagemPrincipal'] = driver.find_element(
+            By.CSS_SELECTOR, '#media > img').get_attribute('src')
+    except:
+        news_details['anatel_ImagemPrincipal'] = ''
+
+    try:
+        news_details['anatel_TextMateria'] = driver.find_element(
+            By.CSS_SELECTOR, '#parent-fieldname-text > div').text
+    except:
+        news_details['anatel_TextMateria'] = ''
+
+    try:
+        news_details['anatel_Categoria'] = driver.find_element(
+            By.CSS_SELECTOR, '#formfield-form-widgets-categoria').text
+    except:
+        news_details['anatel_Categoria'] = ''
+
     return news_details
 
 
