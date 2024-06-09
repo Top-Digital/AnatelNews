@@ -1,7 +1,9 @@
 import os
 import mongoengine as me
+from dotenv import load_dotenv
 
 # Load environment variables
+load_dotenv()
 NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
 
 
