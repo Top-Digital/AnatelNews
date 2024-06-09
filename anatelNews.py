@@ -10,20 +10,13 @@ import mongoengine as me
 from schemas.news_collection import NewsCollection
 from schemas.news_collection_not_posted import NewsCollectionNotPosted
 
-
 # Setup logging
+load_dotenv()
 LOG_FILE = os.getenv('LOG_FILE')
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
 
 # Load environment variables
-load_dotenv()
-
-MONGO_URI = os.getenv('MONGO_URI')
-DB_NAME = os.getenv('DB_NAME')
-SHOW_BROWSER = os.getenv('SHOW_BROWSER') == 'true'
-
-
 MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = os.getenv('DB_NAME')
 SHOW_BROWSER = os.getenv('SHOW_BROWSER') == 'true'
@@ -46,9 +39,7 @@ driver = webdriver.Chrome(service=Service(
 
 def format_html(content):
     try:
-        # Parse the HTML content
         soup = BeautifulSoup(content, 'html.parser')
-        # Remove extra spaces and format HTML to a single line
         compact_html = ' '.join(soup.stripped_strings)
         return compact_html
     except Exception as e:
@@ -156,24 +147,24 @@ news_index = collect_news_index()
 
 # Collect details for each news
 for news in news_index:
-    details = collect_news_details(news['anatel_URL'])
-    news.update(details)
+    if news['anatel_URL']:
+        details = collect_news_details(news['anatel_URL'])
+        news.update(details)
 
 # Save news to MongoDB
 for news in news_index:
-    existing_news = NewsCollection.find_one(
-        {'anatel_URL': news['anatel_URL']})
+    existing_news = NewsCollection.objects(
+        anatel_URL=news['anatel_URL']).first()
     if existing_news:
-        if existing_news['anatel_DataAtualizacao'] != news['anatel_DataAtualizacao']:
-            NewsCollection.update_one(
-                {'anatel_URL': news['anatel_URL']}, {'$set': news})
+        if existing_news.anatel_DataAtualizacao != news['anatel_DataAtualizacao']:
+            existing_news.update(**news)
     else:
         required_fields = ['anatel_URL', 'anatel_Titulo', 'anatel_SubTitulo', 'anatel_ImagemChamada', 'anatel_Descricao',
                            'anatel_DataPublicacao', 'anatel_ImagemPrincipal', 'anatel_TextMateria', 'anatel_Categoria']
         if all(news.get(field) for field in required_fields):
-            NewsCollection.insert_one(news)
+            NewsCollection(**news).save()
         else:
-            NewsCollectionNotPosted.insert_one(news)
+            NewsCollectionNotPosted(**news).save()
 
 # Close the Selenium driver
 driver.quit()
