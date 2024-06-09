@@ -1,4 +1,8 @@
+import os
 import mongoengine as me
+
+# Load environment variables
+NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
 
 
 class NewsCollection(me.Document):
@@ -14,5 +18,5 @@ class NewsCollection(me.Document):
     anatel_Categoria = me.StringField(required=True)
 
     meta = {
-        'collection': 'news_collection'
+        'collection': NEWS_COLLECTION
     }

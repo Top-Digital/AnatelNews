@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -7,8 +8,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from pymongo import MongoClient
 from bs4 import BeautifulSoup
-from schemas.news_collection import NewsCollection
-from schemas.news_collection_not_posted import NewsCollectionNotPosted
 
 # Load environment variables
 load_dotenv()
@@ -18,6 +17,11 @@ DB_NAME = os.getenv('DB_NAME')
 NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
 NEWS_COLLECTION_NOT_POSTED = os.getenv('NEWS_COLLECTION_NOT_POSTED')
 SHOW_BROWSER = os.getenv('SHOW_BROWSER') == 'true'
+LOG_FILE = os.getenv('LOG_FILE')
+
+# Setup logging
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
+                    format='%(asctime)s %(levelname)s:%(message)s')
 
 # MongoDB connection
 client = MongoClient(MONGO_URI)
@@ -56,31 +60,35 @@ def collect_news_index():
                 By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('href')
         except:
             news_data['anatel_URL'] = ''
+            logging.error(f"Error collecting URL at index {index}")
 
         try:
             news_data['anatel_Titulo'] = format_html(news.find_element(
                 By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('innerHTML'))
         except Exception as e:
             news_data['anatel_Titulo'] = ''
-            print(f"Error collecting title at index {index}: {e}")
+            logging.error(f"Error collecting title at index {index}: {e}")
 
         try:
             news_data['anatel_SubTitulo'] = format_html(news.find_element(
                 By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').get_attribute('innerHTML'))
         except:
             news_data['anatel_SubTitulo'] = ''
+            logging.error(f"Error collecting subtitle at index {index}")
 
         try:
             news_data['anatel_ImagemChamada'] = news.find_element(
                 By.CSS_SELECTOR, 'div.conteudo > div.imagem.mobile > img').get_attribute('src')
         except:
             news_data['anatel_ImagemChamada'] = ''
+            logging.error(f"Error collecting image at index {index}")
 
         try:
             news_data['anatel_Descricao'] = format_html(news.find_element(
                 By.CSS_SELECTOR, 'div.conteudo > span > span.data').get_attribute('innerHTML'))
         except:
             news_data['anatel_Descricao'] = ''
+            logging.error(f"Error collecting description at index {index}")
 
         news_list.append(news_data)
 
@@ -96,30 +104,35 @@ def collect_news_details(news_url):
             By.CSS_SELECTOR, '#plone-document-byline > span.documentPublished').text.strip()
     except:
         news_details['anatel_DataPublicacao'] = ''
+        logging.error(f"Error collecting publication date for URL: {news_url}")
 
     try:
         news_details['anatel_DataAtualizacao'] = driver.find_element(
             By.CSS_SELECTOR, '#plone-document-byline > span.documentModified').text.strip()
     except:
         news_details['anatel_DataAtualizacao'] = ''
+        logging.error(f"Error collecting update date for URL: {news_url}")
 
     try:
         news_details['anatel_ImagemPrincipal'] = driver.find_element(
             By.CSS_SELECTOR, '#media > img').get_attribute('src')
     except:
         news_details['anatel_ImagemPrincipal'] = ''
+        logging.error(f"Error collecting main image for URL: {news_url}")
 
     try:
         news_details['anatel_TextMateria'] = format_html(driver.find_element(
             By.CSS_SELECTOR, '#parent-fieldname-text > div').get_attribute('innerHTML'))
     except:
         news_details['anatel_TextMateria'] = ''
+        logging.error(f"Error collecting article text for URL: {news_url}")
 
     try:
         news_details['anatel_Categoria'] = driver.find_element(
             By.CSS_SELECTOR, '#form-widgets-categoria').text.strip()
     except:
         news_details['anatel_Categoria'] = ''
+        logging.error(f"Error collecting category for URL: {news_url}")
 
     return news_details
 
