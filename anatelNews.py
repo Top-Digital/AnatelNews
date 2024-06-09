@@ -6,33 +6,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import mongoengine as me
 
+# Import the schemas
+from schemas.news_collection import NewsCollection
+from schemas.news_collection_not_posted import NewsCollectionNotPosted
+
 # Load environment variables
 load_dotenv()
 
 SHOW_BROWSER = os.getenv('SHOW_BROWSER') == 'true'
 
 # MongoDB connection
-me.connect(db='anatel_news', host='localhost', port=27017)
-
-# Definição do Modelo de Notícia
-
-
-class News(me.Document):
-    anatel_URL = me.StringField(required=True)
-    anatel_Titulo = me.StringField(required=True)
-    anatel_SubTitulo = me.StringField()
-    anatel_ImagemChamada = me.StringField()
-    anatel_Descricao = me.StringField()
-    anatel_DataPublicacao = me.StringField()
-    anatel_DataAtualizacao = me.StringField()
-    anatel_ImagemPrincipal = me.StringField()
-    anatel_TextMateria = me.StringField()
-    anatel_Categoria = me.StringField()
-
-    meta = {
-        'collection': 'news_collection'
-    }
-
+me.connect(db='anatelnews', host='localhost', port=27017)
 
 # Selenium setup
 options = Options()
@@ -42,9 +26,12 @@ if not SHOW_BROWSER:
 driver = webdriver.Chrome(service=Service(
     '/usr/local/bin/chromedriver'), options=options)
 
+# Drop collections
+NewsCollection.drop_collection()
+NewsCollectionNotPosted.drop_collection()
+
+
 # Function to collect news index
-
-
 def collect_news_index():
     url = "https://www.gov.br/anatel/pt-br/assuntos/noticias"
     driver.get(url)
@@ -65,11 +52,10 @@ def collect_news_index():
                 By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('innerHTML')
         except Exception as e:
             news_data['anatel_Titulo'] = ''
-            print(f"Error collecting title at index {index}: {e}")
 
         try:
             news_data['anatel_SubTitulo'] = news.find_element(
-                By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').text
+                By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').get_attribute('innerHTML')
         except:
             news_data['anatel_SubTitulo'] = ''
 
@@ -81,7 +67,7 @@ def collect_news_index():
 
         try:
             news_data['anatel_Descricao'] = news.find_element(
-                By.CSS_SELECTOR, 'div.conteudo > span > span.data').text
+                By.CSS_SELECTOR, 'div.conteudo > span.descricao').get_attribute('innerHTML')
         except:
             news_data['anatel_Descricao'] = ''
 
@@ -89,9 +75,8 @@ def collect_news_index():
 
     return news_list
 
+
 # Function to collect news details
-
-
 def collect_news_details(news_url):
     driver.get(news_url)
     news_details = {}
@@ -116,17 +101,27 @@ def collect_news_details(news_url):
 
     try:
         news_details['anatel_TextMateria'] = driver.find_element(
-            By.CSS_SELECTOR, '#parent-fieldname-text > div').text
+            By.CSS_SELECTOR, '#parent-fieldname-text > div').get_attribute('innerHTML')
     except:
         news_details['anatel_TextMateria'] = ''
 
     try:
         news_details['anatel_Categoria'] = driver.find_element(
-            By.CSS_SELECTOR, '#formfield-form-widgets-categoria').text
+            By.CSS_SELECTOR, '#form-widgets-categoria').get_attribute('innerHTML')
     except:
         news_details['anatel_Categoria'] = ''
 
     return news_details
+
+
+# Function to validate news data
+def is_valid_news(news_data):
+    required_fields = ['anatel_URL', 'anatel_Titulo', 'anatel_SubTitulo', 'anatel_ImagemChamada', 'anatel_Descricao',
+                       'anatel_DataPublicacao', 'anatel_ImagemPrincipal', 'anatel_TextMateria', 'anatel_Categoria']
+    for field in required_fields:
+        if not news_data.get(field):
+            return False
+    return True
 
 
 # Collect news from index
@@ -136,9 +131,24 @@ news_index = collect_news_index()
 for news in news_index:
     details = collect_news_details(news['anatel_URL'])
     news.update(details)
-    # Save news to MongoDB using mongoengine
-    news_doc = News(**news)
-    news_doc.save()
+
+    if is_valid_news(news):
+        existing_news = NewsCollection.objects(
+            anatel_URL=news['anatel_URL']).first()
+        if existing_news:
+            if existing_news.anatel_DataAtualizacao != news['anatel_DataAtualizacao']:
+                existing_news.update(**news)
+        else:
+            news_doc = NewsCollection(**news)
+            news_doc.save()
+    else:
+        existing_news = NewsCollectionNotPosted.objects(
+            anatel_URL=news['anatel_URL']).first()
+        if existing_news:
+            existing_news.update(**news)
+        else:
+            news_doc = NewsCollectionNotPosted(**news)
+            news_doc.save()
 
 # Close the Selenium driver
 driver.quit()
