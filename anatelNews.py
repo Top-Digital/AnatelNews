@@ -52,13 +52,10 @@ def collect_news_index():
         except Exception as e:
             news_data['anatel_Titulo'] = ''
             print(f"Error collecting title at index {index}: {e}")
-            # Print the HTML to debug why anatel_Titulo is empty
-        print(
-            f"News HTML at index {index}:\n{news_data['anatel_Titulo']}")
 
         try:
             news_data['anatel_SubTitulo'] = news.find_element(
-                By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').text
+                By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').get_attribute('innerHTML')
         except Exception as e:
             news_data['anatel_SubTitulo'] = ''
             print(f"Error collecting subtitle at index {index}: {e}")
@@ -72,7 +69,7 @@ def collect_news_index():
 
         try:
             news_data['anatel_Descricao'] = news.find_element(
-                By.CSS_SELECTOR, 'div.conteudo > span > span.data').text
+                By.CSS_SELECTOR, 'div.conteudo > span > span.data').get_attribute('innerHTML')
         except Exception as e:
             news_data['anatel_Descricao'] = ''
             print(f"Error collecting description at index {index}: {e}")
