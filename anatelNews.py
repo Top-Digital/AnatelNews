@@ -4,20 +4,35 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from pymongo import MongoClient
+import mongoengine as me
 
 # Load environment variables
 load_dotenv()
 
-MONGO_URI = os.getenv('MONGO_URI')
-DB_NAME = os.getenv('DB_NAME')
-NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
 SHOW_BROWSER = os.getenv('SHOW_BROWSER') == 'true'
 
 # MongoDB connection
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
-collection = db[NEWS_COLLECTION]
+me.connect(db='anatel_news', host='localhost', port=27017)
+
+# Definição do Modelo de Notícia
+
+
+class News(me.Document):
+    anatel_URL = me.StringField(required=True)
+    anatel_Titulo = me.StringField(required=True)
+    anatel_SubTitulo = me.StringField()
+    anatel_ImagemChamada = me.StringField()
+    anatel_Descricao = me.StringField()
+    anatel_DataPublicacao = me.StringField()
+    anatel_DataAtualizacao = me.StringField()
+    anatel_ImagemPrincipal = me.StringField()
+    anatel_TextMateria = me.StringField()
+    anatel_Categoria = me.StringField()
+
+    meta = {
+        'collection': 'news_collection'
+    }
+
 
 # Selenium setup
 options = Options()
@@ -42,9 +57,8 @@ def collect_news_index():
         try:
             news_data['anatel_URL'] = news.find_element(
                 By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('href')
-        except Exception as e:
+        except:
             news_data['anatel_URL'] = ''
-            print(f"Error collecting URL at index {index}: {e}")
 
         try:
             news_data['anatel_Titulo'] = news.find_element(
@@ -55,24 +69,21 @@ def collect_news_index():
 
         try:
             news_data['anatel_SubTitulo'] = news.find_element(
-                By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').get_attribute('innerHTML')
-        except Exception as e:
+                By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').text
+        except:
             news_data['anatel_SubTitulo'] = ''
-            print(f"Error collecting subtitle at index {index}: {e}")
 
         try:
             news_data['anatel_ImagemChamada'] = news.find_element(
                 By.CSS_SELECTOR, 'div.conteudo > div.imagem.mobile > img').get_attribute('src')
-        except Exception as e:
+        except:
             news_data['anatel_ImagemChamada'] = ''
-            print(f"Error collecting image at index {index}: {e}")
 
         try:
             news_data['anatel_Descricao'] = news.find_element(
-                By.CSS_SELECTOR, 'div.conteudo > span > span.data').get_attribute('innerHTML')
-        except Exception as e:
+                By.CSS_SELECTOR, 'div.conteudo > span > span.data').text
+        except:
             news_data['anatel_Descricao'] = ''
-            print(f"Error collecting description at index {index}: {e}")
 
         news_list.append(news_data)
 
@@ -125,16 +136,9 @@ news_index = collect_news_index()
 for news in news_index:
     details = collect_news_details(news['anatel_URL'])
     news.update(details)
-
-# Save news to MongoDB
-for news in news_index:
-    existing_news = collection.find_one({'anatel_URL': news['anatel_URL']})
-    if existing_news:
-        if existing_news['anatel_DataAtualizacao'] != news['anatel_DataAtualizacao']:
-            collection.update_one(
-                {'anatel_URL': news['anatel_URL']}, {'$set': news})
-    else:
-        collection.insert_one(news)
+    # Save news to MongoDB using mongoengine
+    news_doc = News(**news)
+    news_doc.save()
 
 # Close the Selenium driver
 driver.quit()
