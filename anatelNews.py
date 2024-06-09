@@ -111,7 +111,8 @@ def collect_news_details(news_url):
             By.CSS_SELECTOR, '#plone-document-byline > span.documentModified').text.strip()
     except:
         news_details['anatel_DataAtualizacao'] = ''
-        logging.error(f"Error collecting update date for URL: {news_url}")
+        logging.warning(
+            f"Warning: Could not collect update date for URL: {news_url}")
 
     try:
         news_details['anatel_ImagemPrincipal'] = driver.find_element(
