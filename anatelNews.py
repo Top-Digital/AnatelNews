@@ -16,6 +16,9 @@ LOG_FILE = os.getenv('LOG_FILE')
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
 
+# Suppress overly detailed logging from external libraries
+logging.getLogger('selenium').setLevel(logging.WARNING)
+
 # Load environment variables
 MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = os.getenv('DB_NAME')
