@@ -36,8 +36,9 @@ def format_html(content):
         logging.error(f"Error formatting HTML content: {e}")
         return content.strip()
 
-def collect_news_index():
-    url = NEWS_URL
+def collect_news_index(page_number):
+    url = f"{NEWS_URL}{page_number * 30}"
+    print(f"Collecting news from URL: {url}")
     driver.get(url)
     news_list = []
     news_elements = driver.find_elements(By.CSS_SELECTOR, '#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li')
@@ -114,8 +115,10 @@ def collect_news_details(news_url):
 
     return news_details
 
-# Collect news from index
-news_index = collect_news_index()
+# Collect news from all pages
+news_index = []
+for page in range(0, 34):  # 34 pages will give us 1020 news
+    news_index.extend(collect_news_index(page))
 
 # Collect details for each news
 for news in news_index:
