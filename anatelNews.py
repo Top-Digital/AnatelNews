@@ -14,7 +14,7 @@ from schemas.news_collection_not_posted import NewsCollectionNotPosted
 load_dotenv()
 LOG_FILE = os.getenv('LOG_FILE')
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
-                    format='%(asctime)s %(levelname)s:%(message)s')
+                    format='%(asctime)s')
 
 # Suppress overly detailed logging from external libraries
 logging.getLogger('selenium').setLevel(logging.WARNING)
@@ -42,8 +42,13 @@ driver = webdriver.Chrome(service=Service(
 
 def format_html(content):
     try:
+        # Log content for debugging purposes
+        # Log the first 100 characters for a preview
+        logging.debug(f"Raw HTML content: {content[:100]}...")
+        # Ensure content is treated as raw HTML
         soup = BeautifulSoup(content, 'html.parser')
-        compact_html = ' '.join(soup.stripped_strings)
+        # Join the HTML with a single space between tags
+        compact_html = ' '.join(str(soup).split())
         return compact_html
     except Exception as e:
         logging.error(f"Error formatting HTML content: {e}")
