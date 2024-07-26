@@ -1,11 +1,5 @@
-import os
 import mongoengine as me
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
-
+from config.config import NEWS_COLLECTION
 
 class NewsCollection(me.Document):
     anatel_URL = me.StringField(required=True, unique=True, index=True)
