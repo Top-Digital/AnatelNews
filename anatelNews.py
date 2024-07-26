@@ -1,144 +1,98 @@
-import os
-import logging
+import requests
+from flask import Flask, jsonify
+from pymongo import MongoClient
 from dotenv import load_dotenv
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from bs4 import BeautifulSoup
-import mongoengine as me
+import os
+from datetime import datetime
+import sendgrid
+from sendgrid.helpers.mail import Mail
 from schemas.news_collection import NewsCollection
 from schemas.news_collection_not_posted import NewsCollectionNotPosted
-from config.config import MONGO_URI, DB_NAME, SHOW_BROWSER, LOG_FILE, NEWS_URL
+from config.config import MONGO_URI, DB_NAME, NEWS_COLLECTION, NEWS_COLLECTION_NOT_POSTED, WEBHOOK_URL, WEBHOOK_TOKEN, SENDGRID_API_KEY, LOG_FILE
 
-# Setup logging
-logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+app = Flask(__name__)
 
-# Suppress overly detailed logging from external libraries
-logging.getLogger('selenium').setLevel(logging.WARNING)
+client = MongoClient(MONGO_URI)
+db = client[DB_NAME]
+collection = db[NEWS_COLLECTION]
+not_posted_collection = db[NEWS_COLLECTION_NOT_POSTED]
 
-# MongoDB connection with mongoengine
-me.connect(db=DB_NAME, host=MONGO_URI)
+sg = sendgrid.SendGridAPIClient(SENDGRID_API_KEY)
 
-# Selenium setup
-options = Options()
-if not SHOW_BROWSER:
-    options.add_argument('--headless')
+def send_to_wordpress(news):
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Webhook-Token': WEBHOOK_TOKEN
+    }
+    attribution = '''
+    <div class="texto-copyright">
+        Todo o conteúdo deste site está publicado sob a licença <a rel="license" href="https://creativecommons.org/licenses/by-nd/3.0/deed.pt_BR">Creative Commons Atribuição-SemDerivações 3.0 Não Adaptada</a>. 
+        Fonte: <a href="{url}" target="_blank">Anatel</a>.
+    </div>
+    '''.format(url=news['anatel_URL'])
+    news['anatel_TextMateria'] += attribution
+    response = requests.post(WEBHOOK_URL, json=news, headers=headers)
+    return response
 
-driver = webdriver.Chrome(service=Service('/usr/local/bin/chromedriver'), options=options)
-
-def format_html(content):
+def send_email(to, subject, content):
+    message = Mail(
+        from_email='seuemail@seudominio.com',
+        to_emails=to,
+        subject=subject,
+        html_content=content)
     try:
-        soup = BeautifulSoup(content, 'html.parser')
-        compact_html = ' '.join(str(soup).split())
-        return compact_html
+        response = sg.send(message)
+        return response.status_code == 202
     except Exception as e:
-        logging.error(f"Error formatting HTML content: {e}")
-        return content.strip()
+        print(e.message)
+        return False
 
-def collect_news_index(page_number):
-    url = f"{NEWS_URL}{page_number * 30}"
-    print(f"Collecting news from URL: {url}")
-    driver.get(url)
-    news_list = []
-    news_elements = driver.find_elements(By.CSS_SELECTOR, '#ultimas-noticias > ul.noticias.listagem-noticias-com-foto > li')
+@app.route('/news/send', methods=['POST'])
+def send_news():
+    # Verifica notícias na coleção principal
+    news = collection.find()
+    required_fields = ['anatel_URL', 'anatel_Titulo', 'anatel_DataPublicacao', 'anatel_TextMateria']
+    
+    for item in news:
+        if all(item.get(field) for field in required_fields):
+            if not item.get('email_sent', False):  # Verifica se o email já foi enviado
+                item['_id'] = str(item['_id'])  # Converter ObjectId para string
+                if send_email("destinatario@exemplo.com", item['anatel_Titulo'], item['anatel_TextMateria']):
+                    item['email_sent'] = True
+                    item['email_sent_at'] = datetime.now()
+                    collection.update_one({'_id': item['_id']}, {"$set": item})
+                response = send_to_wordpress(item)
+                if response.status_code == 200:
+                    # Atualiza os campos de controle no MongoDB
+                    item['wordpressPostId'] = response.json().get('post_id')
+                    item['wordpress_DataPublicacao'] = datetime.now().isoformat()
+                    item['wordpress_AtualizacaoDetected'] = False
+                    item['wordpress_DataAtualizacao'] = item.get('anatel_DataAtualizacao')
+                    collection.update_one({'_id': item['_id']}, {"$set": item})
+                else:
+                    return jsonify({'error': 'Failed to send news'}), 500
 
-    for index, news in enumerate(news_elements):
-        news_data = {}
-        try:
-            news_data['anatel_URL'] = news.find_element(By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('href')
-        except Exception as e:
-            news_data['anatel_URL'] = ''
-            logging.error(f"Error collecting URL at index {index}: {e}")
+    # Verifica notícias na coleção de não publicadas
+    not_posted_news = not_posted_collection.find()
+    
+    for item in not_posted_news:
+        if all(item.get(field) for field in required_fields):
+            item['_id'] = str(item['_id'])  # Converter ObjectId para string
+            if send_email("destinatario@exemplo.com", item['anatel_Titulo'], item['anatel_TextMateria']):
+                item['email_sent'] = True
+                item['email_sent_at'] = datetime.now()
+                collection.insert_one(item)
+                not_posted_collection.delete_one({'_id': item['_id']})
+                # Atualiza os campos de controle no MongoDB
+                item['wordpressPostId'] = response.json().get('post_id')
+                item['wordpress_DataPublicacao'] = datetime.now().isoformat()
+                item['wordpress_AtualizacaoDetected'] = False
+                item['wordpress_DataAtualizacao'] = item.get('anatel_DataAtualizacao')
+                collection.update_one({'_id': item['_id']}, {"$set": item})
+            else:
+                return jsonify({'error': 'Failed to send news'}), 500
 
-        try:
-            news_data['anatel_Titulo'] = format_html(news.find_element(By.CSS_SELECTOR, 'div.conteudo > h2 > a').get_attribute('innerHTML'))
-        except Exception as e:
-            news_data['anatel_Titulo'] = ''
-            logging.error(f"Error collecting title at index {index}: {e}")
+    return jsonify({'message': 'News sent successfully'}), 200
 
-        try:
-            news_data['anatel_SubTitulo'] = format_html(news.find_element(By.CSS_SELECTOR, 'div.conteudo > div.subtitulo-noticia').get_attribute('innerHTML'))
-        except Exception as e:
-            news_data['anatel_SubTitulo'] = ''
-            logging.error(f"Error collecting subtitle at index {index}: {e}")
-
-        try:
-            news_data['anatel_ImagemChamada'] = news.find_element(By.CSS_SELECTOR, 'div.conteudo > div.imagem.mobile > img').get_attribute('src')
-        except Exception as e:
-            news_data['anatel_ImagemChamada'] = ''
-            logging.error(f"Error collecting image at index {index}: {e}")
-
-        try:
-            news_data['anatel_Descricao'] = format_html(news.find_element(By.CSS_SELECTOR, 'div.conteudo > span > span.data').get_attribute('innerHTML'))
-        except Exception as e:
-            news_data['anatel_Descricao'] = ''
-            logging.error(f"Error collecting description at index {index}: {e}")
-
-        news_list.append(news_data)
-
-    return news_list
-
-def collect_news_details(news_url):
-    driver.get(news_url)
-    news_details = {}
-
-    try:
-        news_details['anatel_DataPublicacao'] = driver.find_element(By.CSS_SELECTOR, '#plone-document-byline > span.documentPublished').text.strip()
-    except Exception as e:
-        news_details['anatel_DataPublicacao'] = ''
-        logging.error(f"Error collecting publication date for URL: {news_url}: {e}")
-
-    try:
-        news_details['anatel_DataAtualizacao'] = driver.find_element(By.CSS_SELECTOR, '#plone-document-byline > span.documentModified').text.strip()
-    except Exception as e:
-        news_details['anatel_DataAtualizacao'] = ''
-        logging.warning(f"Warning: Could not collect update date for URL: {news_url}: {e}")
-
-    try:
-        news_details['anatel_ImagemPrincipal'] = driver.find_element(By.CSS_SELECTOR, '#media > img').get_attribute('src')
-    except Exception as e:
-        news_details['anatel_ImagemPrincipal'] = ''
-        logging.error(f"Error collecting main image for URL: {news_url}: {e}")
-
-    try:
-        news_details['anatel_TextMateria'] = format_html(driver.find_element(By.CSS_SELECTOR, '#parent-fieldname-text > div').get_attribute('innerHTML'))
-    except Exception as e:
-        news_details['anatel_TextMateria'] = ''
-        logging.error(f"Error collecting article text for URL: {news_url}: {e}")
-
-    try:
-        news_details['anatel_Categoria'] = driver.find_element(By.CSS_SELECTOR, '#form-widgets-categoria').text.strip()
-    except Exception as e:
-        news_details['anatel_Categoria'] = ''
-        logging.error(f"Error collecting category for URL: {news_url}: {e}")
-
-    return news_details
-
-# Collect news from all pages
-news_index = []
-for page in range(0, 34):  # 34 pages will give us 1020 news
-    news_index.extend(collect_news_index(page))
-
-# Collect details for each news
-for news in news_index:
-    if news['anatel_URL']:
-        details = collect_news_details(news['anatel_URL'])
-        news.update(details)
-
-# Save news to MongoDB
-for news in news_index:
-    existing_news = NewsCollection.objects(anatel_URL=news['anatel_URL']).first()
-    if existing_news:
-        if existing_news.anatel_DataAtualizacao != news['anatel_DataAtualizacao']:
-            existing_news.update(**news)
-    else:
-        required_fields = ['anatel_URL', 'anatel_Titulo', 'anatel_SubTitulo', 'anatel_ImagemChamada', 'anatel_Descricao',
-                           'anatel_DataPublicacao', 'anatel_ImagemPrincipal', 'anatel_TextMateria', 'anatel_Categoria']
-        if all(news.get(field) for field in required_fields):
-            NewsCollection(**news).save()
-        else:
-            NewsCollectionNotPosted(**news).save()
-
-# Close the Selenium driver
-driver.quit()
+if __name__ == '__main__':
+    app.run(debug=True)
