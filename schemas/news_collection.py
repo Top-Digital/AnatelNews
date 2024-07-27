@@ -16,8 +16,6 @@ class NewsCollection(me.Document):
     wordpress_DataPublicacao = me.StringField(required=False)
     wordpress_AtualizacaoDetected = me.BooleanField(required=False)
     wordpress_DataAtualizacao = me.StringField(required=False)
-    email_sent = me.BooleanField(default=False)
-    email_sent_at = me.DateTimeField()
 
     meta = {
         'collection': NEWS_COLLECTION
