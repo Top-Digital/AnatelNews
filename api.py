@@ -182,10 +182,10 @@ def send_news():
                 if 'post_id' in response_json:
                     # Atualiza os campos de controle no MongoDB
                     item.update(
-                        set__wordpressPostId=response_json.get('post_id'),
+                        set__wordpressPostId=str(response_json.get('post_id')),
                         set__wordpress_DataPublicacao=datetime.now().isoformat(),
                         set__wordpress_AtualizacaoDetected=False,
-                        set__wordpress_DataAtualizacao=item_dict.get('anatel_DataAtualizacao')
+                        set__wordpress_DataAtualizacao=str(item_dict.get('anatel_DataAtualizacao'))
                     )
                 else:
                     logging.error('post_id não encontrado na resposta do WordPress')

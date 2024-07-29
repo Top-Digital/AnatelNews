@@ -5,3 +5,4 @@ selenium==4.10.0
 pymongo==4.5.0
 mongoengine==0.28.2
 python-dotenv==1.0.0
+mongoengine==0.28.2
