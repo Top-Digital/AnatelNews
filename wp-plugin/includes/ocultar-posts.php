@@ -1,22 +1,7 @@
 <?php
-// Função para deletar todos os posts de uma categoria específica
-function anatelnews_delete_posts_by_category($category_id) {
-    $args = array(
-        'category' => $category_id,
-        'post_type' => 'post',
-        'post_status' => 'any',
-        'numberposts' => -1
-    );
-
-    $posts = get_posts($args);
-
-    foreach ($posts as $post) {
-        wp_delete_post($post->ID, true);
-    }
-}
-
-// Função para ocultar todos os posts de uma categoria específica
-function anatelnews_hide_posts_by_category($category_id) {
+// Função para ocultar todos os posts da categoria Anatel
+function anatelnews_hide_posts_by_category() {
+    $category_id = 2;
     $args = array(
         'category' => $category_id,
         'post_type' => 'post',
@@ -32,4 +17,10 @@ function anatelnews_hide_posts_by_category($category_id) {
             'post_status' => 'draft'
         ));
     }
+
+    echo 'Todos os posts da categoria foram ocultados.';
+    wp_die();
 }
+
+add_action('admin_post_anatelnews_hide_posts', 'anatelnews_hide_posts_by_category');
+?>

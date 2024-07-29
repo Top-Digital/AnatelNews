@@ -64,15 +64,20 @@ function anatelnews_settings_page() {
                     <td><input type="text" name="anatelnews_webhook_token" value="<?php echo esc_attr(get_option('anatelnews_webhook_token')); ?>" /></td>
                 </tr>
                 <tr valign="top">
-                    <th scope="row"><?php echo $is_hidden ? 'Ocultar posts da Anatel' : 'Ocultar posts da categoria 2'; ?></th>
+                    <th scope="row"><?php echo $is_hidden ? 'Ocultar posts da Anatel' : 'Ocultar posts da Anatel'; ?></th>
                     <td><input type="checkbox" name="anatelnews_ocultar_posts" value="1" <?php checked(1, $is_hidden, true); ?> /></td>
                 </tr>
             </table>
             <?php submit_button(); ?>
         </form>
-        <form method="post" action="" onsubmit="return confirmDeletion();">
+        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" onsubmit="return confirmDeletion('Todos os posts serão deletados. Você tem certeza?');">
+            <input type="hidden" name="action" value="anatelnews_delete_all_posts" />
+            <input type="submit" name="anatelnews_delete_all_posts" class="button button-secondary" value="Deletar Todos os Posts"/>
+        </form>
+        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" onsubmit="return confirmDeletion('Todos os posts dessa categoria serão removidos. Você tem certeza?');">
+            <input type="hidden" name="action" value="anatelnews_delete_posts" />
             <input type="hidden" name="anatelnews_delete_posts_nonce" value="<?php echo wp_create_nonce('anatelnews_delete_posts'); ?>" />
-            <input type="submit" name="anatelnews_delete_posts" class="button button-secondary" value="Deletar Posts da Categoria 2"/>
+            <input type="submit" name="anatelnews_delete_posts" class="button button-secondary" value="Deletar Posts da Anatel"/>
         </form>
     </div>
 
@@ -80,7 +85,7 @@ function anatelnews_settings_page() {
     <div id="deletionModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <p>Todos os posts dessa categoria serão removidos. Você tem certeza?</p>
+            <p id="modalMessage">Você tem certeza?</p>
             <div class="progress-bar" id="progressBar">
                 <div class="progress-bar-fill" id="progressBarFill"></div>
             </div>
@@ -142,14 +147,15 @@ function anatelnews_settings_page() {
     </style>
 
     <script>
-        // Modal JavaScript
-        function confirmDeletion() {
+        function confirmDeletion(message) {
             var modal = document.getElementById("deletionModal");
             var span = document.getElementsByClassName("close")[0];
             var confirmButton = document.getElementById("confirmDelete");
             var cancelButton = document.getElementById("cancelDelete");
             var progressBarFill = document.getElementById("progressBarFill");
+            var modalMessage = document.getElementById("modalMessage");
 
+            modalMessage.innerText = message;
             modal.style.display = "block";
 
             span.onclick = function() {
@@ -202,7 +208,26 @@ function anatelnews_register_settings() {
     register_setting('anatelnews-settings-group', 'anatelnews_ocultar_posts');
 }
 
-// Função para deletar posts da categoria 2 se o botão for clicado
+// Função para deletar todos os posts
+add_action('admin_post_anatelnews_delete_all_posts', 'anatelnews_delete_all_posts');
+function anatelnews_delete_all_posts() {
+    $args = array(
+        'post_type' => 'post',
+        'post_status' => 'any',
+        'numberposts' => -1
+    );
+
+    $posts = get_posts($args);
+
+    foreach ($posts as $post) {
+        wp_delete_post($post->ID, true);
+    }
+
+    echo 'Todos os posts foram deletados.';
+    wp_die();
+}
+
+// Função para deletar posts da categoria Anatel
 add_action('wp_ajax_anatelnews_batch_delete', 'anatelnews_batch_delete');
 function anatelnews_batch_delete() {
     check_ajax_referer('anatelnews_batch_delete', 'nonce');
@@ -225,3 +250,4 @@ function anatelnews_batch_delete() {
 
     wp_die();
 }
+?>
