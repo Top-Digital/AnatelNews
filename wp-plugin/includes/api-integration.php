@@ -16,6 +16,7 @@ function anatelnews_create_post($data) {
         'post_content'  => $data['content'],
         'post_status'   => 'publish',
         'post_type'     => 'post',
+        'post_date'     => $data['meta']['anatel_DataPublicacao'], // Use a data de publicação da Anatel
         'meta_input'    => array(
             'anatel_URL' => $data['meta']['anatel_URL'],
             'anatel_Titulo' => $data['meta']['anatel_Titulo'],
@@ -23,8 +24,13 @@ function anatelnews_create_post($data) {
             'anatel_ImagemChamada' => $data['meta']['anatel_ImagemChamada'],
             'anatel_Descricao' => $data['meta']['anatel_Descricao'],
             'anatel_DataPublicacao' => $data['meta']['anatel_DataPublicacao'],
+            'anatel_DataAtualizacao' => $data['meta']['anatel_DataAtualizacao'],
             'anatel_ImagemPrincipal' => $data['meta']['anatel_ImagemPrincipal'],
-            'anatel_Categoria' => $data['meta']['anatel_Categoria']
+            'anatel_TextMateria' => $data['meta']['anatel_TextMateria'],
+            'anatel_Categoria' => $data['meta']['anatel_Categoria'],
+            'wordpress_DataPublicacao' => $data['meta']['wordpress_DataPublicacao'],
+            'wordpress_DataAtualizacao' => $data['meta']['wordpress_DataAtualizacao'],
+            'mailchimp_DataEnvio' => $data['meta']['mailchimp_DataEnvio'],
         )
     );
 

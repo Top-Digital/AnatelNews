@@ -49,7 +49,7 @@ def serialize_dates(data):
 
 # Função para enviar dados para o WordPress
 def send_to_wordpress(data):
-    WEBHOOK_URL = os.getenv('WEBHOOK_URL')
+    WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'http://localhost:8000/wp-json/anatelnews/v1/create-post')
     WEBHOOK_TOKEN = os.getenv('WEBHOOK_TOKEN')
 
     headers = {
@@ -65,7 +65,7 @@ def send_to_wordpress(data):
 
 # Função para converter e enviar dados
 def convert_and_send_fields():
-    documents = NewsCollection.objects()
+    documents = NewsCollection.objects().order_by('-anatel_DataPublicacao')
     for doc in documents:
         data = {
             'title': doc.anatel_Titulo,
@@ -76,14 +76,14 @@ def convert_and_send_fields():
                 'anatel_SubTitulo': doc.anatel_SubTitulo,
                 'anatel_ImagemChamada': doc.anatel_ImagemChamada,
                 'anatel_Descricao': doc.anatel_Descricao,
-                'anatel_DataPublicacao': doc.anatel_DataPublicacao,
-                'anatel_DataAtualizacao': doc.anatel_DataAtualizacao,
+                'anatel_DataPublicacao': doc.anatel_DataPublicacao.isoformat() if doc.anatel_DataPublicacao else '',
+                'anatel_DataAtualizacao': doc.anatel_DataAtualizacao.isoformat() if doc.anatel_DataAtualizacao else '',
                 'anatel_ImagemPrincipal': doc.anatel_ImagemPrincipal,
                 'anatel_TextMateria': doc.anatel_TextMateria,
                 'anatel_Categoria': doc.anatel_Categoria,
-                'wordpress_DataPublicacao': doc.wordpress_DataPublicacao,
-                'wordpress_DataAtualizacao': doc.wordpress_DataAtualizacao,
-                'mailchimp_DataEnvio': doc.mailchimp_DataEnvio
+                'wordpress_DataPublicacao': doc.wordpress_DataPublicacao.isoformat() if doc.wordpress_DataPublicacao else '',
+                'wordpress_DataAtualizacao': doc.wordpress_DataAtualizacao.isoformat() if doc.wordpress_DataAtualizacao else '',
+                'mailchimp_DataEnvio': doc.mailchimp_DataEnvio.isoformat() if doc.mailchimp_DataEnvio else ''
             }
         }
         response = send_to_wordpress(data)
