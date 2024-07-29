@@ -23,10 +23,22 @@ add_action('save_post', 'anatelnews_save_postdata');
 add_action('admin_menu', 'anatelnews_create_menu');
 add_action('the_content', 'anatelnews_display_custom_fields');
 
+// Função para contar os posts da categoria 2
+function anatelnews_count_posts_by_category($category_id) {
+    $args = array(
+        'category' => $category_id,
+        'post_type' => 'post',
+        'post_status' => 'any',
+        'numberposts' => -1
+    );
+    $posts = get_posts($args);
+    return count($posts);
+}
+
 // Função para criar o menu de configurações do plugin
 function anatelnews_create_menu() {
     add_menu_page(
-        'Anatel News Settings', // Título da página
+        'Anatel News Settings (' . anatelnews_count_posts_by_category(2) . ' posts)', // Título da página
         'Anatel News', // Título do menu
         'manage_options', // Capacidade
         'anatelnews_settings', // Slug do menu
@@ -37,9 +49,10 @@ function anatelnews_create_menu() {
 
 // Função para renderizar a página de configurações
 function anatelnews_settings_page() {
+    $is_hidden = get_option('anatelnews_ocultar_posts');
     ?>
     <div class="wrap">
-        <h1>Anatel News Settings</h1>
+        <h1>Anatel News Settings (<?php echo anatelnews_count_posts_by_category(2); ?> posts)</h1>
         <form method="post" action="options.php">
             <?php
             settings_fields('anatelnews-settings-group');
@@ -51,17 +64,134 @@ function anatelnews_settings_page() {
                     <td><input type="text" name="anatelnews_webhook_token" value="<?php echo esc_attr(get_option('anatelnews_webhook_token')); ?>" /></td>
                 </tr>
                 <tr valign="top">
-                    <th scope="row">Ocultar posts da categoria 2</th>
-                    <td><input type="checkbox" name="anatelnews_ocultar_posts" value="1" <?php checked(1, get_option('anatelnews_ocultar_posts'), true); ?> /></td>
+                    <th scope="row"><?php echo $is_hidden ? 'Ocultar posts da Anatel' : 'Ocultar posts da categoria 2'; ?></th>
+                    <td><input type="checkbox" name="anatelnews_ocultar_posts" value="1" <?php checked(1, $is_hidden, true); ?> /></td>
                 </tr>
             </table>
             <?php submit_button(); ?>
         </form>
-        <form method="post" action="">
+        <form method="post" action="" onsubmit="return confirmDeletion();">
             <input type="hidden" name="anatelnews_delete_posts_nonce" value="<?php echo wp_create_nonce('anatelnews_delete_posts'); ?>" />
-            <input type="submit" name="anatelnews_delete_posts" class="button button-secondary" value="Deletar Posts da Categoria 2" onclick="return confirm('Todos os posts dessa categoria serão removidos. Você tem certeza?');"/>
+            <input type="submit" name="anatelnews_delete_posts" class="button button-secondary" value="Deletar Posts da Categoria 2"/>
         </form>
     </div>
+
+    <!-- Modal CSS -->
+    <div id="deletionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p>Todos os posts dessa categoria serão removidos. Você tem certeza?</p>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <button id="confirmDelete" class="button button-primary">Confirmar</button>
+            <button id="cancelDelete" class="button button-secondary">Cancelar</button>
+        </div>
+    </div>
+
+    <style>
+        /* Modal CSS */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .progress-bar-fill {
+            height: 20px;
+            width: 0%;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+    </style>
+
+    <script>
+        // Modal JavaScript
+        function confirmDeletion() {
+            var modal = document.getElementById("deletionModal");
+            var span = document.getElementsByClassName("close")[0];
+            var confirmButton = document.getElementById("confirmDelete");
+            var cancelButton = document.getElementById("cancelDelete");
+            var progressBarFill = document.getElementById("progressBarFill");
+
+            modal.style.display = "block";
+
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
+            cancelButton.onclick = function() {
+                modal.style.display = "none";
+            }
+            confirmButton.onclick = function() {
+                var ajaxurl = "<?php echo admin_url('admin-ajax.php'); ?>";
+                var totalPosts = <?php echo anatelnews_count_posts_by_category(2); ?>;
+                var progress = 0;
+
+                var interval = setInterval(function() {
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        modal.style.display = "none";
+                        location.reload();
+                    } else {
+                        var request = new XMLHttpRequest();
+                        request.open("POST", ajaxurl, true);
+                        request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+                        request.onreadystatechange = function() {
+                            if (request.readyState == 4 && request.status == 200) {
+                                progress += (100 / totalPosts);
+                                progressBarFill.style.width = progress + "%";
+                            }
+                        }
+                        request.send("action=anatelnews_batch_delete&nonce=<?php echo wp_create_nonce('anatelnews_batch_delete'); ?>");
+                    }
+                }, 500);
+            }
+
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+
+            return false;
+        }
+    </script>
     <?php
 }
 
@@ -73,17 +203,25 @@ function anatelnews_register_settings() {
 }
 
 // Função para deletar posts da categoria 2 se o botão for clicado
-add_action('admin_post_anatelnews_delete_posts', 'anatelnews_handle_delete_posts');
-function anatelnews_handle_delete_posts() {
-    if (isset($_POST['anatelnews_delete_posts_nonce']) && wp_verify_nonce($_POST['anatelnews_delete_posts_nonce'], 'anatelnews_delete_posts')) {
-        anatelnews_delete_posts_by_category(2);
-        wp_redirect(admin_url('admin.php?page=anatelnews_settings&deleted=true'));
-        exit;
-    }
-}
+add_action('wp_ajax_anatelnews_batch_delete', 'anatelnews_batch_delete');
+function anatelnews_batch_delete() {
+    check_ajax_referer('anatelnews_batch_delete', 'nonce');
 
-if (isset($_GET['deleted']) && $_GET['deleted'] == 'true') {
-    add_action('admin_notices', function() {
-        echo '<div class="notice notice-success is-dismissible"><p>Posts deletados com sucesso.</p></div>';
-    });
+    $args = array(
+        'category' => 2,
+        'post_type' => 'post',
+        'post_status' => 'any',
+        'numberposts' => 1
+    );
+
+    $posts = get_posts($args);
+
+    if (!empty($posts)) {
+        wp_delete_post($posts[0]->ID, true);
+        echo json_encode(array('success' => true));
+    } else {
+        echo json_encode(array('success' => false));
+    }
+
+    wp_die();
 }
