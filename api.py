@@ -57,9 +57,11 @@ def send_to_wordpress(news):
     </div>
     '''.format(url=news['anatel_URL'])
     news['anatel_TextMateria'] += attribution
-    logging.info(f"Enviando para o webhook: {news}")  # Adicione esta linha para registrar o conteúdo do 'news'
+
+    logging.info(f"Enviando para o webhook: {news}")  # Adiciona o conteúdo do 'news' ao log
     response = requests.post(WEBHOOK_URL, json=news, headers=headers)
-    # Logging the response content for debugging
+    
+    # Registra o status da resposta e o conteúdo para depuração
     logging.info(f"Response status code: {response.status_code}")
     logging.info(f"Response content: {response.content}")
 
@@ -189,11 +191,11 @@ def collect_and_post_news():
 @api_bp.route('/news/send', methods=['POST'])
 def send_news():
     news = NewsCollection.objects()
-    print(news)
+    logging.info(f"Sending news: {list(news)}")  # Adiciona o log de todos os itens
     for item in news:
         item_dict = item.to_mongo().to_dict()
         item_dict['_id'] = str(item_dict['_id'])  # Converter ObjectId para string
-        print(item_dict)
+        logging.info(f"Enviando notícia: {item_dict}")  # Adiciona o log de cada item antes de enviar
         response = send_to_wordpress(item_dict)
         if response.status_code == 200:
             # Atualiza os campos de controle no MongoDB
@@ -204,6 +206,7 @@ def send_news():
                 set__wordpress_DataAtualizacao=item_dict.get('anatel_DataAtualizacao')
             )
         else:
+            logging.error(f"Failed to send news: {item_dict}, Status Code: {response.status_code}")
             return jsonify({'error': 'Failed to send news'}), 500
     return jsonify({'message': 'News sent successfully'}), 200
 

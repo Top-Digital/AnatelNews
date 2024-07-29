@@ -24,6 +24,7 @@ function anatel_news_webhook_callback($request) {
 
     // Verifica o token de segurança
     if ($token !== $env_token) {
+        error_log('Unauthorized access: Invalid token.');
         return new WP_REST_Response('Unauthorized', 401);
     }
 
@@ -31,8 +32,9 @@ function anatel_news_webhook_callback($request) {
     $required_fields = ['anatel_URL', 'anatel_Titulo', 'anatel_DataPublicacao', 'anatel_TextMateria'];
 
     // Verifica se todos os campos obrigatórios estão preenchidos
-    foreach ($required_fields como $field) {
+    foreach ($required_fields as $field) {
         if (empty($params[$field])) {
+            error_log('Missing required field: ' . $field);
             return new WP_REST_Response('Missing required field: ' . $field, 400);
         }
     }
@@ -46,7 +48,7 @@ function anatel_news_webhook_callback($request) {
         $params['anatel_TextMateria'] .= $attribution;
 
         // Verifica se o post já existe
-        $existing_post_id = get_post_by_mongo_id($params['wordpressPostId']);
+        $existing_post_id = isset($params['wordpressPostId']) ? get_post_by_mongo_id($params['wordpressPostId']) : false;
 
         // Define a categoria
         $category_id = 2; // ID da categoria "Notícias Anatel - NewsLetter"
@@ -62,8 +64,10 @@ function anatel_news_webhook_callback($request) {
                     'post_category' => array($category_id)
                 ));
                 update_post_meta($existing_post_id, 'mongo_update_date', $params['anatel_DataAtualizacao']);
+                error_log('Post updated: ' . $existing_post_id);
                 return new WP_REST_Response('Post updated', 200);
             } else {
+                error_log('No update needed: ' . $existing_post_id);
                 return new WP_REST_Response('No update needed', 200);
             }
         } else {
@@ -77,14 +81,19 @@ function anatel_news_webhook_callback($request) {
             ));
 
             if ($post_id) {
-                add_post_meta($post_id, 'mongo_id', $params['wordpressPostId']);
+                if (isset($params['wordpressPostId'])) {
+                    add_post_meta($post_id, 'mongo_id', $params['wordpressPostId']);
+                }
                 add_post_meta($post_id, 'mongo_update_date', $params['anatel_DataAtualizacao']);
+                error_log('Post created: ' . $post_id);
                 return new WP_REST_Response('Post created', 200);
             } else {
+                error_log('Failed to insert post');
                 return new WP_REST_Response('Failed to insert post', 500);
             }
         }
     }
+    error_log('Invalid request');
     return new WP_REST_Response('Invalid request', 400);
 }
 
