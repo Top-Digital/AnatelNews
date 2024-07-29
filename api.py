@@ -201,7 +201,7 @@ def send_news():
 
 def send_to_wordpress(data):
     url = WEBHOOK_URL
-    headers = {'Content-Type': 'application/json', 'X-Webhook-Token': 'your_token_here'}
+    headers = {'Content-Type': 'application/json', 'X-Webhook-Token': WEBHOOK_TOKEN}
     response = requests.post(url, json=data, headers=headers)
     return response
 
