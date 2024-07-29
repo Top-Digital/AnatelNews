@@ -1,6 +1,5 @@
 import os
 import logging
-from flask import Flask, jsonify, request, Blueprint
 from dotenv import load_dotenv
 import mongoengine as me
 from selenium import webdriver
@@ -11,16 +10,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import requests
 
-# Importa os modelos
-from schemas.news_collection import NewsCollection
-from schemas.news_collection_not_posted import NewsCollectionNotPosted
-
-# Configurações do aplicativo Flask
-app = Flask(__name__)
-api_bp = Blueprint('api', __name__)
-logging.basicConfig(level=logging.INFO)
-
-# Carrega variáveis de ambiente
+# Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
 
 MONGO_URI = os.getenv('MONGO_URI')
@@ -34,7 +24,7 @@ NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
 NEWS_COLLECTION_NOT_POSTED = os.getenv('NEWS_COLLECTION_NOT_POSTED')
 
 # Configura o log
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, filename=LOG_FILE)
 logging.getLogger('selenium').setLevel(logging.WARNING)
 
 # Conexão com MongoDB usando mongoengine
@@ -45,6 +35,44 @@ options = Options()
 if not SHOW_BROWSER:
     options.add_argument('--headless')
 driver = webdriver.Chrome(service=Service('/usr/local/bin/chromedriver'), options=options)
+
+# Definir os modelos MongoDB
+class NewsCollection(me.Document):
+    anatel_URL = me.StringField(required=True, unique=True, index=True)
+    anatel_Titulo = me.StringField(required=True)
+    anatel_SubTitulo = me.StringField(required=True)
+    anatel_ImagemChamada = me.StringField(required=True)
+    anatel_Descricao = me.StringField(required=True)
+    anatel_DataPublicacao = me.DateTimeField(required=True)
+    anatel_DataAtualizacao = me.DateTimeField()
+    anatel_ImagemPrincipal = me.StringField(required=True)
+    anatel_TextMateria = me.StringField(required=True)
+    anatel_Categoria = me.StringField(required=True)
+    wordpressPostId = me.StringField()
+    wordpress_DataPublicacao = me.DateTimeField()
+    wordpress_AtualizacaoDetected = me.BooleanField()
+    mailchimpSent = me.BooleanField()
+    mailchimp_DataEnvio = me.DateTimeField()
+    
+    meta = {
+        'collection': NEWS_COLLECTION
+    }
+
+class NewsCollectionNotPosted(me.Document):
+    anatel_URL = me.StringField(required=True, unique=True, index=True)
+    anatel_Titulo = me.StringField(required=True)
+    anatel_SubTitulo = me.StringField(required=True)
+    anatel_ImagemChamada = me.StringField(required=True)
+    anatel_Descricao = me.StringField(required=True)
+    anatel_DataPublicacao = me.DateTimeField(required=True)
+    anatel_DataAtualizacao = me.DateTimeField()
+    anatel_ImagemPrincipal = me.StringField(required=True)
+    anatel_TextMateria = me.StringField(required=True)
+    anatel_Categoria = me.StringField(required=True)
+
+    meta = {
+        'collection': NEWS_COLLECTION_NOT_POSTED
+    }
 
 def format_html(content):
     try:
@@ -133,11 +161,12 @@ def collect_news_details(news_url):
 
     return news_details
 
+def send_to_wordpress(data):
+    url = WEBHOOK_URL
+    headers = {'Content-Type': 'application/json', 'X-Webhook-Token': WEBHOOK_TOKEN}
+    response = requests.post(url, json=data, headers=headers)
+    return response
 
-
-
-
-@api_bp.route('/news/collect', methods=['POST'])
 def collect_and_post_news():
     logging.info("Starting news collection")
     news_index = collect_news_index()
@@ -169,47 +198,6 @@ def collect_and_post_news():
                 NewsCollectionNotPosted(**news).save()
                 logging.info(f"Saved news to not posted collection: {news['anatel_URL']}")
 
-    return jsonify({'message': 'News collected and posted successfully'}), 200
-
-@app.route('/news/send', methods=['POST'])
-def send_news():
-    news = NewsCollection.objects()  # Supondo que NewsCollection esteja definida
-    for item in news:
-        item_dict = item.to_mongo().to_dict()
-        item_dict['_id'] = str(item_dict['_id'])  # Converter ObjectId para string
-        logging.info(f'Enviando notícia: {item_dict}')  # Adiciona o log de cada item antes de enviar
-
-        try:
-            response = send_to_wordpress(item_dict)
-            if response.status_code == 200:
-                response_json = response.json()
-                if 'post_id' in response_json:
-                    # Atualiza os campos de controle no MongoDB
-                    item.update(
-                        set__wordpressPostId=str(response_json.get('post_id')),
-                        set__wordpress_DataPublicacao=datetime.now().isoformat(),
-                        set__wordpress_AtualizacaoDetected=False,
-                        set__wordpress_DataAtualizacao=str(item_dict.get('anatel_DataAtualizacao'))
-                    )
-                else:
-                    logging.error('post_id não encontrado na resposta do WordPress')
-                    return jsonify({'error': 'post_id não encontrado na resposta do WordPress'}), 500
-            else:
-                logging.error(f'Falha ao enviar notícia: {response.content}')
-                return jsonify({'error': 'Failed to send news'}), 500
-        except requests.exceptions.RequestException as e:
-            logging.error(f'Erro ao enviar notícia: {e}')
-            return jsonify({'error': 'Erro ao enviar notícia'}), 500
-
-    return jsonify({'message': 'News sent successfully'}), 200
-
-def send_to_wordpress(data):
-    url = WEBHOOK_URL
-    headers = {'Content-Type': 'application/json', 'X-Webhook-Token': WEBHOOK_TOKEN}
-    response = requests.post(url, json=data, headers=headers)
-    return response
-
-app.register_blueprint(api_bp)
-
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    collect_and_post_news()
+    driver.quit()
