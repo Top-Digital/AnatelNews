@@ -1,11 +1,12 @@
 import requests
-from flask import Flask, jsonify
+from flask import Blueprint, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 from datetime import datetime
+from anatel_news import collect_and_post_news
 
-app = Flask(__name__)
+api_bp = Blueprint('api', __name__)
 
 load_dotenv()
 MONGO_URI = os.getenv('MONGO_URI')
@@ -24,7 +25,7 @@ def send_to_wordpress(news):
     response = requests.post(WEBHOOK_URL, json=news, headers=headers)
     return response
 
-@app.route('/news/send', methods=['POST'])
+@api_bp.route('/news/send', methods=['POST'])
 def send_news():
     news = collection.find()
     for item in news:
@@ -41,5 +42,7 @@ def send_news():
             return jsonify({'error': 'Failed to send news'}), 500
     return jsonify({'message': 'News sent successfully'}), 200
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@api_bp.route('/news/collect', methods=['POST'])
+def collect_news():
+    collect_and_post_news()
+    return jsonify({'message': 'News collected and posted successfully'}), 200
