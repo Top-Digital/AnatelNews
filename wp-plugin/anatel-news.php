@@ -49,7 +49,7 @@ function anatel_news_webhook_callback($request) {
         $existing_post_id = get_post_by_mongo_id($params['wordpressPostId']);
 
         // Define a categoria
-        $category_id = 307; // ID da categoria "Notícias Anatel - NewsLetter"
+        $category_id = 2; // ID da categoria "Notícias Anatel - NewsLetter"
 
         if ($existing_post_id) {
             // Atualiza o post existente se a data de atualização for diferente
