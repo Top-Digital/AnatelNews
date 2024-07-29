@@ -14,11 +14,15 @@ if (!defined('ABSPATH')) {
 // Incluir arquivos necessários
 require_once plugin_dir_path(__FILE__) . 'includes/custom-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-integration.php';
+require_once plugin_dir_path(__FILE__) . 'includes/display-fields.php';
+require_once plugin_dir_path(__FILE__) . 'includes/ocultar-posts.php';
 
 // Adicionar hooks necessários
 add_action('add_meta_boxes', 'anatelnews_add_custom_box');
 add_action('save_post', 'anatelnews_save_postdata');
 add_action('admin_menu', 'anatelnews_create_menu');
+add_action('the_content', 'anatelnews_display_custom_fields');
+add_action('init', 'anatelnews_delete_posts_by_category');
 
 // Função para criar o menu de configurações do plugin
 function anatelnews_create_menu() {
