@@ -22,7 +22,7 @@ add_action('add_meta_boxes', 'anatelnews_add_custom_box');
 add_action('save_post', 'anatelnews_save_postdata');
 add_action('admin_menu', 'anatelnews_create_menu');
 add_action('the_content', 'anatelnews_display_custom_fields');
-add_action('init', 'anatelnews_delete_posts_by_category');
+add_action('init', 'anatelnews_maybe_ocultar_posts');
 
 // Função para criar o menu de configurações do plugin
 function anatelnews_create_menu() {
@@ -51,6 +51,10 @@ function anatelnews_settings_page() {
                     <th scope="row">Webhook Token</th>
                     <td><input type="text" name="anatelnews_webhook_token" value="<?php echo esc_attr(get_option('anatelnews_webhook_token')); ?>" /></td>
                 </tr>
+                <tr valign="top">
+                    <th scope="row">Ocultar posts da categoria 2</th>
+                    <td><input type="checkbox" name="anatelnews_ocultar_posts" value="1" <?php checked(1, get_option('anatelnews_ocultar_posts'), true); ?> /></td>
+                </tr>
             </table>
             <?php submit_button(); ?>
         </form>
@@ -62,4 +66,12 @@ function anatelnews_settings_page() {
 add_action('admin_init', 'anatelnews_register_settings');
 function anatelnews_register_settings() {
     register_setting('anatelnews-settings-group', 'anatelnews_webhook_token');
+    register_setting('anatelnews-settings-group', 'anatelnews_ocultar_posts');
+}
+
+// Função para ocultar posts da categoria 2 se a opção estiver ativada
+function anatelnews_maybe_ocultar_posts() {
+    if (get_option('anatelnews_ocultar_posts')) {
+        anatelnews_ocultar_posts_by_category(2);
+    }
 }
