@@ -165,5 +165,24 @@ def collect_and_post_news():
 
     return jsonify({'message': 'News collected and posted successfully'}), 200
 
+@app.route('/news/send', methods=['POST'])
+def send_news():
+    news = NewsCollection.objects()
+    for item in news:
+        item_dict = item.to_mongo().to_dict()
+        item_dict['_id'] = str(item_dict['_id'])  # Converter ObjectId para string
+        response = send_to_wordpress(item_dict)
+        if response.status_code == 200:
+            # Atualiza os campos de controle no MongoDB
+            item.update(
+                set__wordpressPostId=response.json().get('post_id'),
+                set__wordpress_DataPublicacao=datetime.now().isoformat(),
+                set__wordpress_AtualizacaoDetected=False,
+                set__wordpress_DataAtualizacao=item_dict.get('anatel_DataAtualizacao')
+            )
+        else:
+            return jsonify({'error': 'Failed to send news'}), 500
+    return jsonify({'message': 'News sent successfully'}), 200
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

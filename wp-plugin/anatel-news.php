@@ -31,7 +31,7 @@ function anatel_news_webhook_callback($request) {
     $required_fields = ['anatel_URL', 'anatel_Titulo', 'anatel_DataPublicacao', 'anatel_TextMateria'];
 
     // Verifica se todos os campos obrigatórios estão preenchidos
-    foreach ($required_fields as $field) {
+    foreach ($required_fields como $field) {
         if (empty($params[$field])) {
             return new WP_REST_Response('Missing required field: ' . $field, 400);
         }
@@ -40,8 +40,7 @@ function anatel_news_webhook_callback($request) {
     if ($params) {
         // Adiciona a atribuição ao conteúdo da matéria
         $attribution = '<div class="texto-copyright">
-            Todo o conteúdo deste site está publicado sob a licença <a rel="license" href="https://creativecommons.org/licenses/by-nd/3.0/deed.pt_BR">Creative Commons
-Atribuição-SemDerivações 3.0 Não Adaptada</a>.
+            Todo o conteúdo deste site está publicado sob a licença <a rel="license" href="https://creativecommons.org/licenses/by-nd/3.0/deed.pt_BR">Creative Commons Atribuição-SemDerivações 3.0 Não Adaptada</a>.
             Fonte: <a href="' . esc_url($params['anatel_URL']) . '" target="_blank">Anatel</a>.
         </div>';
         $params['anatel_TextMateria'] .= $attribution;
@@ -67,7 +66,7 @@ Atribuição-SemDerivações 3.0 Não Adaptada</a>.
             } else {
                 return new WP_REST_Response('No update needed', 200);
             }
-	} else {
+        } else {
             // Cria um novo post
             $post_id = wp_insert_post(array(
                 'post_title' => wp_strip_all_tags($params['anatel_Titulo']),
@@ -84,7 +83,7 @@ Atribuição-SemDerivações 3.0 Não Adaptada</a>.
             } else {
                 return new WP_REST_Response('Failed to insert post', 500);
             }
-	}
+        }
     }
     return new WP_REST_Response('Invalid request', 400);
 }
