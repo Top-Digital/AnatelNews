@@ -50,7 +50,7 @@ class NewsCollection(me.Document):
     anatel_Categoria = me.StringField(required=True)
     wordpressPostId = me.StringField()
     wordpress_DataPublicacao = me.DateTimeField()
-    wordpress_AtualizacaoDetected = me.BooleanField()
+    wordpress_AtualizacaoDetected = me.BooleanField(default=False)
     mailchimpSent = me.BooleanField()
     mailchimp_DataEnvio = me.DateTimeField()
     
@@ -180,6 +180,7 @@ def collect_and_post_news():
                 existing_news = NewsCollection.objects(anatel_URL=news['anatel_URL']).first()
                 if existing_news:
                     if existing_news.anatel_DataAtualizacao != news['anatel_DataAtualizacao']:
+                        news['wordpress_AtualizacaoDetected'] = True
                         existing_news.update(**news)
                         response = send_to_wordpress(news)
                         if response.status_code == 200:
