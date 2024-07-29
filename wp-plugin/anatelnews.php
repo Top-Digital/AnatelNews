@@ -22,7 +22,6 @@ add_action('add_meta_boxes', 'anatelnews_add_custom_box');
 add_action('save_post', 'anatelnews_save_postdata');
 add_action('admin_menu', 'anatelnews_create_menu');
 add_action('the_content', 'anatelnews_display_custom_fields');
-add_action('init', 'anatelnews_maybe_ocultar_posts');
 
 // Função para criar o menu de configurações do plugin
 function anatelnews_create_menu() {
@@ -58,6 +57,10 @@ function anatelnews_settings_page() {
             </table>
             <?php submit_button(); ?>
         </form>
+        <form method="post" action="">
+            <input type="hidden" name="anatelnews_delete_posts_nonce" value="<?php echo wp_create_nonce('anatelnews_delete_posts'); ?>" />
+            <input type="submit" name="anatelnews_delete_posts" class="button button-secondary" value="Deletar Posts da Categoria 2" onclick="return confirm('Todos os posts dessa categoria serão removidos. Você tem certeza?');"/>
+        </form>
     </div>
     <?php
 }
@@ -69,9 +72,18 @@ function anatelnews_register_settings() {
     register_setting('anatelnews-settings-group', 'anatelnews_ocultar_posts');
 }
 
-// Função para ocultar posts da categoria 2 se a opção estiver ativada
-function anatelnews_maybe_ocultar_posts() {
-    if (get_option('anatelnews_ocultar_posts')) {
-        anatelnews_ocultar_posts_by_category(2);
+// Função para deletar posts da categoria 2 se o botão for clicado
+add_action('admin_post_anatelnews_delete_posts', 'anatelnews_handle_delete_posts');
+function anatelnews_handle_delete_posts() {
+    if (isset($_POST['anatelnews_delete_posts_nonce']) && wp_verify_nonce($_POST['anatelnews_delete_posts_nonce'], 'anatelnews_delete_posts')) {
+        anatelnews_delete_posts_by_category(2);
+        wp_redirect(admin_url('admin.php?page=anatelnews_settings&deleted=true'));
+        exit;
     }
+}
+
+if (isset($_GET['deleted']) && $_GET['deleted'] == 'true') {
+    add_action('admin_notices', function() {
+        echo '<div class="notice notice-success is-dismissible"><p>Posts deletados com sucesso.</p></div>';
+    });
 }
