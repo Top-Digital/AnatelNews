@@ -18,6 +18,7 @@ from schemas.news_collection_not_posted import NewsCollectionNotPosted
 # Configurações do aplicativo Flask
 app = Flask(__name__)
 api_bp = Blueprint('api', __name__)
+logging.basicConfig(level=logging.INFO)
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -44,28 +45,6 @@ options = Options()
 if not SHOW_BROWSER:
     options.add_argument('--headless')
 driver = webdriver.Chrome(service=Service('/usr/local/bin/chromedriver'), options=options)
-
-def send_to_wordpress(news):
-    headers = {
-        'Content-Type': 'application/json',
-        'X-Webhook-Token': WEBHOOK_TOKEN
-    }
-    attribution = '''
-    <div class="texto-copyright">
-        Todo o conteúdo deste site está publicado sob a licença <a rel="license" href="https://creativecommons.org/licenses/by-nd/3.0/deed.pt_BR">Creative Commons Atribuição-SemDerivações 3.0 Não Adaptada</a>. 
-        Fonte: <a href="{url}" target="_blank">Anatel</a>.
-    </div>
-    '''.format(url=news['anatel_URL'])
-    news['anatel_TextMateria'] += attribution
-
-    logging.info(f"Enviando para o webhook: {news}")  # Adiciona o conteúdo do 'news' ao log
-    response = requests.post(WEBHOOK_URL, json=news, headers=headers)
-    
-    # Registra o status da resposta e o conteúdo para depuração
-    logging.info(f"Response status code: {response.status_code}")
-    logging.info(f"Response content: {response.content}")
-
-    return response
 
 def format_html(content):
     try:
@@ -188,27 +167,43 @@ def collect_and_post_news():
 
     return jsonify({'message': 'News collected and posted successfully'}), 200
 
-@api_bp.route('/news/send', methods=['POST'])
+@app.route('/news/send', methods=['POST'])
 def send_news():
-    news = NewsCollection.objects()
-    logging.info(f"Sending news: {list(news)}")  # Adiciona o log de todos os itens
+    news = NewsCollection.objects()  # Supondo que NewsCollection esteja definida
     for item in news:
         item_dict = item.to_mongo().to_dict()
         item_dict['_id'] = str(item_dict['_id'])  # Converter ObjectId para string
-        logging.info(f"Enviando notícia: {item_dict}")  # Adiciona o log de cada item antes de enviar
-        response = send_to_wordpress(item_dict)
-        if response.status_code == 200:
-            # Atualiza os campos de controle no MongoDB
-            item.update(
-                set__wordpressPostId=response.json().get('post_id'),
-                set__wordpress_DataPublicacao=datetime.now().isoformat(),
-                set__wordpress_AtualizacaoDetected=False,
-                set__wordpress_DataAtualizacao=item_dict.get('anatel_DataAtualizacao')
-            )
-        else:
-            logging.error(f"Failed to send news: {item_dict}, Status Code: {response.status_code}")
-            return jsonify({'error': 'Failed to send news'}), 500
+        logging.info(f'Enviando notícia: {item_dict}')  # Adiciona o log de cada item antes de enviar
+
+        try:
+            response = send_to_wordpress(item_dict)
+            if response.status_code == 200:
+                response_json = response.json()
+                if 'post_id' in response_json:
+                    # Atualiza os campos de controle no MongoDB
+                    item.update(
+                        set__wordpressPostId=response_json.get('post_id'),
+                        set__wordpress_DataPublicacao=datetime.now().isoformat(),
+                        set__wordpress_AtualizacaoDetected=False,
+                        set__wordpress_DataAtualizacao=item_dict.get('anatel_DataAtualizacao')
+                    )
+                else:
+                    logging.error('post_id não encontrado na resposta do WordPress')
+                    return jsonify({'error': 'post_id não encontrado na resposta do WordPress'}), 500
+            else:
+                logging.error(f'Falha ao enviar notícia: {response.content}')
+                return jsonify({'error': 'Failed to send news'}), 500
+        except requests.exceptions.RequestException as e:
+            logging.error(f'Erro ao enviar notícia: {e}')
+            return jsonify({'error': 'Erro ao enviar notícia'}), 500
+
     return jsonify({'message': 'News sent successfully'}), 200
+
+def send_to_wordpress(data):
+    url = WEBHOOK_URL
+    headers = {'Content-Type': 'application/json', 'X-Webhook-Token': 'your_token_here'}
+    response = requests.post(url, json=data, headers=headers)
+    return response
 
 app.register_blueprint(api_bp)
 

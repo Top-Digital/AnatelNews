@@ -24,8 +24,7 @@ function anatel_news_webhook_callback($request) {
 
     // Verifica o token de segurança
     if ($token !== $env_token) {
-        error_log('Unauthorized access: Invalid token.');
-        return new WP_REST_Response('Unauthorized', 401);
+        return new WP_REST_Response(array('message' => 'Unauthorized'), 401);
     }
 
     // Campos obrigatórios
@@ -34,8 +33,7 @@ function anatel_news_webhook_callback($request) {
     // Verifica se todos os campos obrigatórios estão preenchidos
     foreach ($required_fields as $field) {
         if (empty($params[$field])) {
-            error_log('Missing required field: ' . $field);
-            return new WP_REST_Response('Missing required field: ' . $field, 400);
+            return new WP_REST_Response(array('message' => 'Missing required field: ' . $field), 400);
         }
     }
 
@@ -64,11 +62,9 @@ function anatel_news_webhook_callback($request) {
                     'post_category' => array($category_id)
                 ));
                 update_post_meta($existing_post_id, 'mongo_update_date', $params['anatel_DataAtualizacao']);
-                error_log('Post updated: ' . $existing_post_id);
-                return new WP_REST_Response('Post updated', 200);
+                return new WP_REST_Response(array('message' => 'Post updated', 'post_id' => $existing_post_id), 200);
             } else {
-                error_log('No update needed: ' . $existing_post_id);
-                return new WP_REST_Response('No update needed', 200);
+                return new WP_REST_Response(array('message' => 'No update needed'), 200);
             }
         } else {
             // Cria um novo post
@@ -85,16 +81,13 @@ function anatel_news_webhook_callback($request) {
                     add_post_meta($post_id, 'mongo_id', $params['wordpressPostId']);
                 }
                 add_post_meta($post_id, 'mongo_update_date', $params['anatel_DataAtualizacao']);
-                error_log('Post created: ' . $post_id);
-                return new WP_REST_Response('Post created', 200);
+                return new WP_REST_Response(array('message' => 'Post created', 'post_id' => $post_id), 200);
             } else {
-                error_log('Failed to insert post');
-                return new WP_REST_Response('Failed to insert post', 500);
+                return new WP_REST_Response(array('message' => 'Failed to insert post'), 500);
             }
         }
     }
-    error_log('Invalid request');
-    return new WP_REST_Response('Invalid request', 400);
+    return new WP_REST_Response(array('message' => 'Invalid request'), 400);
 }
 
 // Função para obter um post pelo ID do MongoDB
