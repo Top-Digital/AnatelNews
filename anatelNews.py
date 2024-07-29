@@ -166,4 +166,4 @@ def collect_and_post_news():
     return jsonify({'message': 'News collected and posted successfully'}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
