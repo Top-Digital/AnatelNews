@@ -12,6 +12,7 @@ load_dotenv()
 MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = os.getenv('DB_NAME')
 NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
+CATEGORIA_ANATEL_NEWS = os.getenv('CATEGORIA_ANATEL_NEWS')
 
 me.connect(DB_NAME, host=MONGO_URI)  # Ajuste conforme necessário
 
@@ -31,7 +32,7 @@ def send_to_wordpress(data):
 
 
     # Usar a categoria com ID 2
-    data['categories'] = [2]
+    data['categories'] = []
     data['status'] = 'publish'# Garantir que os posts sejam publicados
     
     create_post_url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
