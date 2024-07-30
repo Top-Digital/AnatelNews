@@ -47,6 +47,33 @@ def serialize_dates(data):
             data[key] = serialize_dates(value)
     return data
 
+def get_category_id(category_name):
+    """Verifica se a categoria existe e retorna seu ID"""
+    WORDPRESS_URL = os.getenv('WORDPRESS_URL').rstrip('/')
+    JWT_TOKEN = os.getenv('JWT_TOKEN')
+
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {JWT_TOKEN}'
+    }
+
+    # Verificar se a categoria já existe
+    categories_url = f"{WORDPRESS_URL}/wp-json/wp/v2/categories?search={category_name}"
+    response = requests.get(categories_url, headers=headers)
+    
+    try:
+        categories = response.json()
+        print(f"Categorias retornadas: {categories}")  # Log para depuração
+    except ValueError:
+        print(f"Erro ao decodificar JSON: {response.text}")
+        categories = []
+
+    if isinstance(categories, list) and any(cat['name'] == category_name for cat in categories):
+        return next(cat['id'] for cat in categories if cat['name'] == category_name)
+    else:
+        print("Erro: Categoria 'Notícias Anatel – NewsLetter' não encontrada.")
+        return None
+
 # Função para enviar dados para o WordPress
 def send_to_wordpress(data):
     WORDPRESS_URL = os.getenv('WORDPRESS_URL', 'http://localhost:8000').rstrip('/')
@@ -60,9 +87,13 @@ def send_to_wordpress(data):
     # Converter datas para strings ISO
     data = serialize_dates(data)
 
-    # Usar a categoria com ID 2
-    data['categories'] = [2]
-    data['status'] = 'publish'  # Garantir que os posts sejam publicados
+    # Garantir que a categoria "Notícias Anatel – NewsLetter" existe
+    category_id = 2
+    if category_id:
+        data['categories'] = [category_id]
+    else:
+        print("Erro: Não foi possível encontrar a categoria 'Notícias Anatel – NewsLetter'.")
+        return {"error": "Não foi possível encontrar a categoria 'Notícias Anatel – NewsLetter'."}
     
     create_post_url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
     response = requests.post(create_post_url, headers=headers, data=json.dumps(data))
