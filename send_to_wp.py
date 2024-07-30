@@ -12,6 +12,14 @@ load_dotenv()
 MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = os.getenv('DB_NAME')
 NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
+WORDPRESS_URL = os.getenv('WORDPRESS_URL')
+
+JWT_TOKEN = os.getenv('JWT_TOKEN')
+
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {JWT_TOKEN}'
+}
 
 me.connect(DB_NAME, host=MONGO_URI)  # Ajuste conforme necessário
 
@@ -47,38 +55,8 @@ def serialize_dates(data):
             data[key] = serialize_dates(value)
     return data
 
-def get_category_id(category_name):
-    """Verifica se a categoria existe e retorna seu ID"""
-    WORDPRESS_URL = os.getenv('WORDPRESS_URL').rstrip('/')
-    JWT_TOKEN = os.getenv('JWT_TOKEN')
-
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {JWT_TOKEN}'
-    }
-
-    # Verificar se a categoria já existe
-    categories_url = f"{WORDPRESS_URL}/wp-json/wp/v2/categories?search={category_name}"
-    response = requests.get(categories_url, headers=headers)
-    
-    try:
-        categories = response.json()
-        print(f"Categorias retornadas: {categories}")  # Log para depuração
-    except ValueError:
-        print(f"Erro ao decodificar JSON: {response.text}")
-        categories = []
-
-    if isinstance(categories, list) and any(cat['name'] == category_name for cat in categories):
-        return next(cat['id'] for cat in categories if cat['name'] == category_name)
-    else:
-        print("Erro: Categoria 'Notícias Anatel – NewsLetter' não encontrada.")
-        return None
-
 # Função para enviar dados para o WordPress
 def send_to_wordpress(data):
-    WORDPRESS_URL = os.getenv('WORDPRESS_URL', 'http://localhost:8000').rstrip('/')
-    JWT_TOKEN = os.getenv('JWT_TOKEN')
-
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {JWT_TOKEN}'
@@ -87,13 +65,9 @@ def send_to_wordpress(data):
     # Converter datas para strings ISO
     data = serialize_dates(data)
 
-    # Garantir que a categoria "Notícias Anatel – NewsLetter" existe
-    category_id = 2
-    if category_id:
-        data['categories'] = [category_id]
-    else:
-        print("Erro: Não foi possível encontrar a categoria 'Notícias Anatel – NewsLetter'.")
-        return {"error": "Não foi possível encontrar a categoria 'Notícias Anatel – NewsLetter'."}
+    # Usar a categoria com ID 2
+    data['categories'] = [2]
+    data['status'] = 'publish'  # Garantir que os posts sejam publicados
     
     create_post_url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
     response = requests.post(create_post_url, headers=headers, data=json.dumps(data))
@@ -115,6 +89,7 @@ def convert_and_send_fields():
         data = {
             'title': doc.anatel_Titulo,
             'content': doc.anatel_TextMateria,
+            'date': doc.anatel_DataPublicacao.isoformat() if doc.anatel_DataPublicacao else '',  # Usar anatel_DataPublicacao como data de publicação
             'meta': {
                 'anatel_URL': doc.anatel_URL,
                 'anatel_Titulo': doc.anatel_Titulo,
@@ -131,7 +106,17 @@ def convert_and_send_fields():
                 'mailchimp_DataEnvio': doc.mailchimp_DataEnvio.isoformat() if doc.mailchimp_DataEnvio else ''
             }
         }
-        response = send_to_wordpress(data)
+        
+        # Verificar se o post já existe no WordPress
+        if doc.wordpressPostId:
+            update_post_url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts/{doc.wordpressPostId}"
+            response = requests.post(update_post_url, headers=headers, data=json.dumps(data))
+        else:
+            response = send_to_wordpress(data)
+            if 'id' in response:
+                doc.wordpressPostId = response['id']
+                doc.save()
+
         print(response)
 
 if __name__ == '__main__':
