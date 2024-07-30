@@ -37,42 +37,8 @@ if not SHOW_BROWSER:
 driver = webdriver.Chrome(service=Service('/usr/local/bin/chromedriver'), options=options)
 
 # Definir os modelos MongoDB
-class NewsCollection(me.Document):
-    anatel_URL = me.StringField(required=True, unique=True, index=True)
-    anatel_Titulo = me.StringField(required=True)
-    anatel_SubTitulo = me.StringField(required=True)
-    anatel_ImagemChamada = me.StringField(required=True)
-    anatel_Descricao = me.StringField(required=True)
-    anatel_DataPublicacao = me.DateTimeField(required=True)
-    anatel_DataAtualizacao = me.DateTimeField()
-    anatel_ImagemPrincipal = me.StringField(required=True)
-    anatel_TextMateria = me.StringField(required=True)
-    anatel_Categoria = me.StringField(required=True)
-    wordpressPostId = me.StringField()
-    wordpress_DataPublicacao = me.DateTimeField()
-    wordpress_AtualizacaoDetected = me.BooleanField()
-    mailchimpSent = me.BooleanField()
-    mailchimp_DataEnvio = me.DateTimeField()
-    
-    meta = {
-        'collection': NEWS_COLLECTION
-    }
-
-class NewsCollectionNotPosted(me.Document):
-    anatel_URL = me.StringField(required=True, unique=True, index=True)
-    anatel_Titulo = me.StringField(required=True)
-    anatel_SubTitulo = me.StringField(required=True)
-    anatel_ImagemChamada = me.StringField(required=True)
-    anatel_Descricao = me.StringField(required=True)
-    anatel_DataPublicacao = me.DateTimeField(required=True)
-    anatel_DataAtualizacao = me.DateTimeField()
-    anatel_ImagemPrincipal = me.StringField(required=True)
-    anatel_TextMateria = me.StringField(required=True)
-    anatel_Categoria = me.StringField(required=True)
-
-    meta = {
-        'collection': NEWS_COLLECTION_NOT_POSTED
-    }
+from schemas.news_collection import NewsCollection
+from schemas.news_collection_not_posted import NewsCollectionNotPosted
 
 def format_html(content):
     try:
