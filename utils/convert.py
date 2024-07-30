@@ -1,6 +1,10 @@
 import mongoengine as me
 from datetime import datetime
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Conectar ao MongoDB
 me.connect('anatelnews', host='localhost', port=27017)  # ajuste o host e a porta conforme necessário
 
