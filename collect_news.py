@@ -50,7 +50,7 @@ class NewsCollection(me.Document):
     anatel_Categoria = me.StringField(required=True)
     wordpressPostId = me.StringField()
     wordpress_DataPublicacao = me.DateTimeField()
-    wordpress_AtualizacaoDetected = me.BooleanField(default=False)
+    wordpress_AtualizacaoDetected = me.BooleanField()
     mailchimpSent = me.BooleanField()
     mailchimp_DataEnvio = me.DateTimeField()
     

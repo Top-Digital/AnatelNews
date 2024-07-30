@@ -49,24 +49,38 @@ def serialize_dates(data):
 
 # Função para enviar dados para o WordPress
 def send_to_wordpress(data):
-    WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'http://localhost:8000/wp-json/anatelnews/v1/create-post')
-    WEBHOOK_TOKEN = os.getenv('WEBHOOK_TOKEN')
+    WORDPRESS_URL = os.getenv('WORDPRESS_URL', 'http://localhost:8000').rstrip('/')
+    JWT_TOKEN = os.getenv('JWT_TOKEN')
 
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': f'Bearer {WEBHOOK_TOKEN}'
+        'Authorization': f'Bearer {JWT_TOKEN}'
     }
 
     # Converter datas para strings ISO
     data = serialize_dates(data)
+
+    # Usar a categoria com ID 2
+    data['categories'] = [2]
+    data['status'] = 'publish'  # Garantir que os posts sejam publicados
     
-    response = requests.post(WEBHOOK_URL, headers=headers, data=json.dumps(data))
+    create_post_url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
+    response = requests.post(create_post_url, headers=headers, data=json.dumps(data))
+    
+    if response.status_code != 201:
+        print(f"Erro ao criar post: {response.json()}")
     return response.json()
 
 # Função para converter e enviar dados
 def convert_and_send_fields():
+    cutoff_date = datetime.strptime('2024-06-28T18:47:00.000+00:00', '%Y-%m-%dT%H:%M:%S.%f%z')
     documents = NewsCollection.objects().order_by('-anatel_DataPublicacao')
     for doc in documents:
+        if doc.anatel_DataAtualizacao and doc.anatel_DataAtualizacao >= cutoff_date:
+            doc.mailchimpSent = True
+            doc.mailchimp_DataEnvio = datetime.now()
+            doc.save()
+        
         data = {
             'title': doc.anatel_Titulo,
             'content': doc.anatel_TextMateria,
