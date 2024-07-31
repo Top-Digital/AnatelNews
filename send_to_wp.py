@@ -44,7 +44,6 @@ def send_to_wordpress(data):
 
 # Função para converter e enviar dados
 def convert_and_send_fields():
-    cutoff_date = datetime.strptime('2024-06-28T18:47:00.000+00:00', '%Y-%m-%dT%H:%M:%S.%f%z')
     documents = NewsCollection.objects().order_by('-anatel_DataPublicacao').limit(1)
     for doc in documents:
         
@@ -74,13 +73,7 @@ def convert_and_send_fields():
         
         anatel_mailchimp_DataEnvio = doc.mailchimp_DataEnvio
         if type(doc.mailchimp_DataEnvio) != str:
-            anatel_mailchimp_DataEnvio = doc.mailchimp_DataEnvio.isoformat() if doc.mailchimp_DataEnvio else ''
-        
-        if doc.anatel_DataAtualizacao and doc.anatel_DataAtualizacao >= cutoff_date:
-            doc.mailchimpSent = True
-            doc.mailchimp_DataEnvio = datetime.now()
-            doc.save()
-        
+            anatel_mailchimp_DataEnvio = doc.mailchimp_DataEnvio.isoformat() if doc.mailchimp_DataEnvio else ''         
 
         data = {
             'title': doc.anatel_Titulo,
