@@ -45,7 +45,7 @@ def send_to_wordpress(data):
 # Função para converter e enviar dados
 def convert_and_send_fields():
     cutoff_date = datetime.strptime('2024-06-28T18:47:00.000+00:00', '%Y-%m-%dT%H:%M:%S.%f%z')
-    documents = NewsCollection.objects().order_by('-anatel_DataPublicacao').limit(10)
+    documents = NewsCollection.objects().order_by('-anatel_DataPublicacao').limit(1)
     for doc in documents:
         
         anatel_Descricao = doc.anatel_Descricao
