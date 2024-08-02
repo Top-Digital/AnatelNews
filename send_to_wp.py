@@ -2,7 +2,9 @@ import os
 import requests
 import json
 from datetime import datetime
+from mongoengine import Q
 import mongoengine as me
+
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente do arquivo .env
@@ -36,7 +38,9 @@ def send_to_wordpress(data):
 
 # Função para converter e enviar dados
 def convert_and_send_fields():
-    documents = NewsCollection.objects().order_by('-anatel_DataPublicacao').limit(1)
+    documents = NewsCollection.objects(
+        Q(wordpressPostId__exists=False) | Q(wordpressPostId="")
+    ).order_by('-anatel_DataPublicacao').limit(1)
     for doc in documents:
         
         anatel_Descricao = doc.anatel_Descricao
