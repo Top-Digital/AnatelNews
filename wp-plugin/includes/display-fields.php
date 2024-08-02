@@ -1,21 +1,21 @@
 <?php
-// Exibir campos personalizados no frontend do WordPress
-function anatelnews_display_custom_fields($content) {
-    if (is_single() && 'post' == get_post_type()) {
-        $custom_fields = get_post_meta(get_the_ID());
+// Função para registrar campos personalizados na API REST
+function anatelnews_register_custom_fields() {
+    $fields = [
+        'anatel_URL', 'anatel_Titulo', 'anatel_SubTitulo',
+        'anatel_ImagemChamada', 'anatel_Descricao', 'anatel_DataPublicacao',
+        'anatel_DataAtualizacao', 'anatel_ImagemPrincipal', 'anatel_TextMateria',
+        'anatel_Categoria', 'wordpress_DataPublicacao', 'wordpress_DataAtualizacao',
+        'mailchimp_DataEnvio'
+    ];
 
-        if (!empty($custom_fields)) {
-            $custom_content = '<div class="custom-fields">';
-            foreach ($custom_fields as $key => $value) {
-                if (strpos($key, 'anatel_') !== false) {
-                    $custom_content .= '<p><strong>' . esc_html($key) . ':</strong> ' . esc_html($value[0]) . '</p>';
-                }
-            }
-            $custom_content .= '</div>';
-            $content .= $custom_content;
-        }
+    foreach ($fields as $field) {
+        register_meta('post', $field, [
+            'show_in_rest' => true,
+            'single' => true,
+            'type' => 'string',
+        ]);
     }
-
-    return $content;
 }
-add_filter('the_content', 'anatelnews_display_custom_fields');
+add_action('rest_api_init', 'anatelnews_register_custom_fields');
+?>

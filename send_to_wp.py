@@ -11,14 +11,11 @@ load_dotenv()
 # Conectar ao MongoDB usando variáveis de ambiente
 MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = os.getenv('DB_NAME')
-NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
-CATEGORIA_ANATEL_NEWS = os.getenv('CATEGORIA_ANATEL_NEWS')
 
-me.connect(DB_NAME, host=MONGO_URI)  # Ajuste conforme necessário
+me.connect(DB_NAME, host=MONGO_URI)
 
 # Definir as coleções
 from schemas.news_collection import NewsCollection
-
 
 # Função para enviar dados para o WordPress
 def send_to_wordpress(data):
@@ -30,11 +27,6 @@ def send_to_wordpress(data):
         'Authorization': f'Bearer {JWT_TOKEN}'
     }
 
-
-    # Usar a categoria com ID 2
-    data['categories'] = []
-    data['status'] = 'publish'# Garantir que os posts sejam publicados
-    
     create_post_url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
     response = requests.post(create_post_url, headers=headers, data=json.dumps(data))
     
@@ -50,11 +42,7 @@ def convert_and_send_fields():
         anatel_Descricao = doc.anatel_Descricao
         if type(doc.anatel_Descricao) != str:
             anatel_Descricao = doc.anatel_Descricao.isoformat() if doc.anatel_Descricao else ''
-        else:
-            doc.anatel_Descricao = datetime.fromisoformat(doc.anatel_Descricao).isoformat()
         
-        print(type(doc.anatel_Descricao))
-                        
         anatel_DataPublicacao = doc.anatel_DataPublicacao
         if type(doc.anatel_DataPublicacao) != str:
             anatel_DataPublicacao = doc.anatel_DataPublicacao.isoformat() if doc.anatel_DataPublicacao else ''
@@ -96,19 +84,16 @@ def convert_and_send_fields():
             }
         }
 
-
         print(f"Enviando dados para o WordPress: {data}")
 
         response = send_to_wordpress(data)
 
-        #atualiza o post com o id do post no wordpress para evitar duplicidade
+        # Atualiza o post com o ID do post no WordPress para evitar duplicidade
         doc.wordpressPostId = str(response["id"])
-        if(doc.wordpress_DataAtualizacao):            
+        if doc.wordpress_DataAtualizacao:
             doc.wordpress_DataAtualizacao = datetime.now()
         else:
             doc.wordpress_DataPublicacao = datetime.now()
-     
-
 
         doc.save()
 

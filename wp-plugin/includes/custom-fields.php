@@ -55,3 +55,4 @@ function anatelnews_save_postdata($post_id) {
 
 add_action('add_meta_boxes', 'anatelnews_add_custom_box');
 add_action('save_post', 'anatelnews_save_postdata');
+?>

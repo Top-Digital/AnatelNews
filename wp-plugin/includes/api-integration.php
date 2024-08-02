@@ -11,27 +11,19 @@ add_action('rest_api_init', 'anatelnews_register_api_endpoints');
 
 // Função de callback para criar post
 function anatelnews_create_post($data) {
+    $selected_category = get_option('anatelnews_category');
+    if (!$selected_category) {
+        return new WP_Error('category_not_selected', 'Nenhuma categoria selecionada no plugin', array('status' => 400));
+    }
+
     $post_data = array(
         'post_title'    => $data['title'],
         'post_content'  => $data['content'],
         'post_status'   => 'publish',
         'post_type'     => 'post',
         'post_date'     => $data['meta']['anatel_DataPublicacao'], // Use a data de publicação da Anatel
-        'meta_input'    => array(
-            'anatel_URL' => $data['meta']['anatel_URL'],
-            'anatel_Titulo' => $data['meta']['anatel_Titulo'],
-            'anatel_SubTitulo' => $data['meta']['anatel_SubTitulo'],
-            'anatel_ImagemChamada' => $data['meta']['anatel_ImagemChamada'],
-            'anatel_Descricao' => $data['meta']['anatel_Descricao'],
-            'anatel_DataPublicacao' => $data['meta']['anatel_DataPublicacao'],
-            'anatel_DataAtualizacao' => $data['meta']['anatel_DataAtualizacao'],
-            'anatel_ImagemPrincipal' => $data['meta']['anatel_ImagemPrincipal'],
-            'anatel_TextMateria' => $data['meta']['anatel_TextMateria'],
-            'anatel_Categoria' => $data['meta']['anatel_Categoria'],
-            'wordpress_DataPublicacao' => $data['meta']['wordpress_DataPublicacao'],
-            'wordpress_DataAtualizacao' => $data['meta']['wordpress_DataAtualizacao'],
-            'mailchimp_DataEnvio' => $data['meta']['mailchimp_DataEnvio'],
-        )
+        'post_category' => array($selected_category), // Adicionar a categoria selecionada
+        'meta_input'    => $data['meta'] // Inserir todos os metadados de uma vez
     );
 
     // Inserir o post no WordPress
@@ -43,3 +35,4 @@ function anatelnews_create_post($data) {
 
     return new WP_REST_Response($post_data, 200);
 }
+?>

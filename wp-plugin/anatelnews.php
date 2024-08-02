@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Anatel News
  * Description: Plugin para integrar notícias da Anatel no WordPress.
- * Version: 1.01
+ * Version: 1.02
  * Author: Adriano Alves Dal Cin Costa
  */
 
@@ -18,14 +18,13 @@ require_once plugin_dir_path(__FILE__) . 'includes/display-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/ocultar-posts.php';
 require_once plugin_dir_path(__FILE__) . 'includes/custom_single_random_category_retrip.php';
 
-
 // Adicionar hooks necessários
 add_action('add_meta_boxes', 'anatelnews_add_custom_box');
 add_action('save_post', 'anatelnews_save_postdata');
 add_action('admin_menu', 'anatelnews_create_menu');
 add_action('the_content', 'anatelnews_display_custom_fields');
 
-// Função para contar os posts da categoria 2
+// Função para contar os posts da categoria selecionada
 function anatelnews_count_posts_by_category($category_id) {
     $args = array(
         'category' => $category_id,
@@ -39,8 +38,10 @@ function anatelnews_count_posts_by_category($category_id) {
 
 // Função para criar o menu de configurações do plugin
 function anatelnews_create_menu() {
+    $selected_category = get_option('anatelnews_category');
+    $count = $selected_category ? anatelnews_count_posts_by_category($selected_category) : 0;
     add_menu_page(
-        'Anatel News Settings (' . anatelnews_count_posts_by_category(2) . ' posts)', // Título da página
+        'Anatel News Settings (' . $count . ' posts)', // Título da página
         'Anatel News', // Título do menu
         'manage_options', // Capacidade
         'anatelnews_settings', // Slug do menu
@@ -51,10 +52,12 @@ function anatelnews_create_menu() {
 
 // Função para renderizar a página de configurações
 function anatelnews_settings_page() {
+    $categories = get_categories();
+    $selected_category = get_option('anatelnews_category');
     $is_hidden = get_option('anatelnews_ocultar_posts');
     ?>
     <div class="wrap">
-        <h1>Anatel News Settings (<?php echo anatelnews_count_posts_by_category(2); ?> posts)</h1>
+        <h1>Anatel News Settings</h1>
         <form method="post" action="options.php">
             <?php
             settings_fields('anatelnews-settings-group');
@@ -64,6 +67,19 @@ function anatelnews_settings_page() {
                 <tr valign="top">
                     <th scope="row">Webhook Token</th>
                     <td><input type="text" name="anatelnews_webhook_token" value="<?php echo esc_attr(get_option('anatelnews_webhook_token')); ?>" /></td>
+                </tr>
+                <tr valign="top">
+                    <th scope="row">Selecionar Categoria</th>
+                    <td>
+                        <select name="anatelnews_category">
+                            <option value="">Selecione uma categoria</option>
+                            <?php foreach ($categories as $category) : ?>
+                                <option value="<?php echo $category->term_id; ?>" <?php selected($selected_category, $category->term_id); ?>>
+                                    <?php echo $category->name; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
                 </tr>
                 <tr valign="top">
                     <th scope="row"><?php echo $is_hidden ? 'Ocultar posts da Anatel' : 'Ocultar posts da Anatel'; ?></th>
@@ -168,7 +184,7 @@ function anatelnews_settings_page() {
             }
             confirmButton.onclick = function() {
                 var ajaxurl = "<?php echo admin_url('admin-ajax.php'); ?>";
-                var totalPosts = <?php echo anatelnews_count_posts_by_category(2); ?>;
+                var totalPosts = <?php echo anatelnews_count_posts_by_category(get_option('anatelnews_category')); ?>;
                 var progress = 0;
 
                 var interval = setInterval(function() {
@@ -207,6 +223,7 @@ function anatelnews_settings_page() {
 add_action('admin_init', 'anatelnews_register_settings');
 function anatelnews_register_settings() {
     register_setting('anatelnews-settings-group', 'anatelnews_webhook_token');
+    register_setting('anatelnews-settings-group', 'anatelnews_category');
     register_setting('anatelnews-settings-group', 'anatelnews_ocultar_posts');
 }
 
@@ -235,7 +252,7 @@ function anatelnews_batch_delete() {
     check_ajax_referer('anatelnews_batch_delete', 'nonce');
 
     $args = array(
-        'category' => 2,
+        'category' => get_option('anatelnews_category'),
         'post_type' => 'post',
         'post_status' => 'any',
         'numberposts' => 1
