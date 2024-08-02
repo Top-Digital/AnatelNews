@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Anatel News
  * Description: Plugin para integrar notícias da Anatel no WordPress.
- * Version: 1.0
+ * Version: 1.01
  * Author: Adriano Alves Dal Cin Costa
  */
 
@@ -16,6 +16,8 @@ require_once plugin_dir_path(__FILE__) . 'includes/custom-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-integration.php';
 require_once plugin_dir_path(__FILE__) . 'includes/display-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/ocultar-posts.php';
+require_once plugin_dir_path(__FILE__) . 'includes/custom_single_random_category_retrip.php';
+
 
 // Adicionar hooks necessários
 add_action('add_meta_boxes', 'anatelnews_add_custom_box');
