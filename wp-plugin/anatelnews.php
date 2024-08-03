@@ -14,15 +14,17 @@ if (!defined('ABSPATH')) {
 // Incluir arquivos necessários
 require_once plugin_dir_path(__FILE__) . 'includes/custom-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-integration.php';
+require_once plugin_dir_path(__FILE__) . 'includes/register-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/display-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/ocultar-posts.php';
-require_once plugin_dir_path(__FILE__) . 'includes/custom_single_random_category_retrip.php';
 
 // Adicionar hooks necessários
 add_action('add_meta_boxes', 'anatelnews_add_custom_box');
 add_action('save_post', 'anatelnews_save_postdata');
 add_action('admin_menu', 'anatelnews_create_menu');
 add_action('the_content', 'anatelnews_display_custom_fields');
+
+
 
 // Função para contar os posts da categoria selecionada
 function anatelnews_count_posts_by_category($category_id) {
@@ -52,7 +54,11 @@ function anatelnews_create_menu() {
 
 // Função para renderizar a página de configurações
 function anatelnews_settings_page() {
-    $categories = get_categories();
+    $categories = get_categories(
+        array(
+            'hide_empty' => false
+        )
+    );
     $selected_category = get_option('anatelnews_category');
     $is_hidden = get_option('anatelnews_ocultar_posts');
     ?>

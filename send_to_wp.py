@@ -40,7 +40,7 @@ def send_to_wordpress(data):
 def convert_and_send_fields():
     documents = NewsCollection.objects(
         Q(wordpressPostId__exists=False) | Q(wordpressPostId="")
-    ).order_by('-anatel_DataPublicacao').limit(1)
+    ).order_by('-anatel_DataPublicacao')
     for doc in documents:
         
         anatel_Descricao = doc.anatel_Descricao

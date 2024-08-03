@@ -1,21 +1,15 @@
 <?php
-// Função para registrar campos personalizados na API REST
-function anatelnews_register_custom_fields() {
-    $fields = [
-        'anatel_URL', 'anatel_Titulo', 'anatel_SubTitulo',
-        'anatel_ImagemChamada', 'anatel_Descricao', 'anatel_DataPublicacao',
-        'anatel_DataAtualizacao', 'anatel_ImagemPrincipal', 'anatel_TextMateria',
-        'anatel_Categoria', 'wordpress_DataPublicacao', 'wordpress_DataAtualizacao',
-        'mailchimp_DataEnvio'
-    ];
-
-    foreach ($fields as $field) {
-        register_meta('post', $field, [
-            'show_in_rest' => true,
-            'single' => true,
-            'type' => 'string',
-        ]);
+// Função para exibir campos personalizados no conteúdo do post
+function anatelnews_display_custom_fields($content) {
+    if (is_singular('post')) {
+        $custom_fields = get_post_meta(get_the_ID());
+        // Exemplo de exibição de campos personalizados
+        // Ajuste conforme necessário para exibir os campos específicos do seu plugin
+        foreach ($custom_fields as $key => $value) {
+            $content .= '<p>' . esc_html($key) . ': ' . esc_html($value[0]) . '</p>';
+        }
     }
+    return $content;
 }
-add_action('rest_api_init', 'anatelnews_register_custom_fields');
+add_filter('the_content', 'anatelnews_display_custom_fields');
 ?>
