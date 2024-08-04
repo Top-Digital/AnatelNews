@@ -12,13 +12,17 @@ class NewsCollection(me.Document):
     anatel_ImagemPrincipal = me.StringField(required=True)
     anatel_TextMateria = me.StringField(required=True)
     anatel_Categoria = me.StringField(required=True)
-    wordpressPostId = me.StringField( required=False, default=None)
+    anatel_PostIsRemoved = me.BooleanField(required=True, default=False)
+    anatel_ErrorToFix = me.BooleanField(required=True, default=False)
+    anatel_ErrorDescription = me.StringField(required=False, default=None)
+    anatel_ErrorDate = me.DateTimeField(required=False, default=None)
+    wordpressPostId = me.StringField(required=False, default=None)
     wordpress_DataPublicacao = me.DateTimeField(required=False, default=None)
     wordpress_AtualizacaoDetected = me.BooleanField(required=False, default=None)
     wordpress_DataAtualizacao = me.DateTimeField(required=False, default=None)
     mailchimpSent = me.BooleanField(required=False, default=None)
     mailchimp_DataEnvio = me.DateTimeField(required=False, default=None)
-    
+
     meta = {
         'collection': NEWS_COLLECTION
     }

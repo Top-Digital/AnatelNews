@@ -1,10 +1,10 @@
 import os
-import requests
-import json
+from wordpress_xmlrpc import Client, WordPressPost
+from wordpress_xmlrpc.methods.posts import NewPost
+from wordpress_xmlrpc.methods.users import GetUserInfo
 from datetime import datetime
 from mongoengine import Q
 import mongoengine as me
-
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente do arquivo .env
@@ -19,22 +19,36 @@ me.connect(DB_NAME, host=MONGO_URI)
 # Definir as coleções
 from schemas.news_collection import NewsCollection
 
+# Conectar ao WordPress
+WORDPRESS_URL = os.getenv('WORDPRESS_URL')
+WORDPRESS_USER = os.getenv('WORDPRESS_USER')
+WORDPRESS_PASSWORD = os.getenv('WORDPRESS_PASSWORD')
+
+client = Client(WORDPRESS_URL, WORDPRESS_USER, WORDPRESS_PASSWORD)
+
 # Função para enviar dados para o WordPress
-def send_to_wordpress(data):
-    WORDPRESS_URL = os.getenv('WORDPRESS_URL', 'http://localhost:8000').rstrip('/')
-    JWT_TOKEN = os.getenv('JWT_TOKEN')
-
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {JWT_TOKEN}'
-    }
-
-    create_post_url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
-    response = requests.post(create_post_url, headers=headers, data=json.dumps(data))
-    
-    if response.status_code != 201:
-        print(f"Erro ao criar post: {response.json()}")
-    return response.json()
+def send_to_wordpress(post):
+    wp_post = WordPressPost()
+    wp_post.title = post['title']
+    wp_post.content = post['content']
+    wp_post.post_status = 'publish'
+    wp_post.date = post['date']
+    wp_post.custom_fields = [
+        {'key': 'anatel_URL', 'value': post['meta']['anatel_URL']},
+        {'key': 'anatel_Titulo', 'value': post['meta']['anatel_Titulo']},
+        {'key': 'anatel_SubTitulo', 'value': post['meta']['anatel_SubTitulo']},
+        {'key': 'anatel_ImagemChamada', 'value': post['meta']['anatel_ImagemChamada']},
+        {'key': 'anatel_Descricao', 'value': post['meta']['anatel_Descricao']},
+        {'key': 'anatel_DataPublicacao', 'value': post['meta']['anatel_DataPublicacao']},
+        {'key': 'anatel_DataAtualizacao', 'value': post['meta']['anatel_DataAtualizacao']},
+        {'key': 'anatel_ImagemPrincipal', 'value': post['meta']['anatel_ImagemPrincipal']},
+        {'key': 'anatel_TextMateria', 'value': post['meta']['anatel_TextMateria']},
+        {'key': 'anatel_Categoria', 'value': post['meta']['anatel_Categoria']},
+        {'key': 'wordpress_DataPublicacao', 'value': post['meta']['wordpress_DataPublicacao']},
+        {'key': 'wordpress_DataAtualizacao', 'value': post['meta']['wordpress_DataAtualizacao']},
+        {'key': 'mailchimp_DataEnvio', 'value': post['meta']['mailchimp_DataEnvio']}
+    ]
+    return client.call(NewPost(wp_post))
 
 # Função para converter e enviar dados
 def convert_and_send_fields():
@@ -42,7 +56,6 @@ def convert_and_send_fields():
         Q(wordpressPostId__exists=False) | Q(wordpressPostId="")
     ).order_by('-anatel_DataPublicacao')
     for doc in documents:
-        
         anatel_Descricao = doc.anatel_Descricao
         if type(doc.anatel_Descricao) != str:
             anatel_Descricao = doc.anatel_Descricao.isoformat() if doc.anatel_Descricao else ''
@@ -93,7 +106,7 @@ def convert_and_send_fields():
         response = send_to_wordpress(data)
 
         # Atualiza o post com o ID do post no WordPress para evitar duplicidade
-        doc.wordpressPostId = str(response["id"])
+        doc.wordpressPostId = str(response.id)
         if doc.wordpress_DataAtualizacao:
             doc.wordpress_DataAtualizacao = datetime.now()
         else:

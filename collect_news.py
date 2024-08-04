@@ -3,8 +3,8 @@ import logging
 from dotenv import load_dotenv
 import mongoengine as me
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -34,7 +34,13 @@ me.connect(db=DB_NAME, host=MONGO_URI)
 options = Options()
 if not SHOW_BROWSER:
     options.add_argument('--headless')
-driver = webdriver.Chrome(service=Service('/usr/local/bin/chromedriver'), options=options)
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
+
+driver = webdriver.Remote(
+    command_executor='http://localhost:4444/wd/hub',
+    options=options
+)
 
 # Definir os modelos MongoDB
 from schemas.news_collection import NewsCollection
