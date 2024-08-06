@@ -6,3 +6,4 @@ pymongo==4.8.0
 mongoengine==0.28.2
 python-dotenv==1.0.0
 mongoengine==0.28.2
+python-wordpress-xmlrpc

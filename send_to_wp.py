@@ -5,10 +5,7 @@ from wordpress_xmlrpc.methods.users import GetUserInfo
 from datetime import datetime
 from mongoengine import Q
 import mongoengine as me
-from dotenv import load_dotenv
-
-# Carregar variáveis de ambiente do arquivo .env
-load_dotenv()
+from config import env
 
 # Conectar ao MongoDB usando variáveis de ambiente
 MONGO_URI = os.getenv('MONGO_URI')

@@ -17,6 +17,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/api-integration.php';
 require_once plugin_dir_path(__FILE__) . 'includes/register-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/display-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/ocultar-posts.php';
+require_once plugin_dir_path(__FILE__) . 'includes/category-functions.php';
 
 // Adicionar hooks necessários
 add_action('add_meta_boxes', 'anatelnews_add_custom_box');
@@ -26,8 +27,8 @@ add_action('the_content', 'anatelnews_display_custom_fields');
 
 // Função para criar o menu de configurações do plugin
 function anatelnews_create_menu() {
-    $selected_category = get_option('anatelnews_category');
-    $count = $selected_category ? anatelnews_count_posts_by_category($selected_category) : 0;
+    $selected_category = anatelnews_ensure_category_exists();
+    $count = anatelnews_count_posts_by_category($selected_category);
     add_menu_page(
         'Anatel News Settings (' . $count . ' posts)', // Título da página
         'Anatel News', // Título do menu
