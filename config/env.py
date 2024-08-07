@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # export ENVIRONMENT=prod
 # export ENVIRONMENT=staging
 
-environment = os.getenv('ENVIRONMENT', 'staging')  # Padrão para 'local' se não estiver definido
+environment = os.getenv('ENVAN', 'staging')  # Padrão para 'local' se não estiver definido
 
 if environment == 'prod':
     dotenv_path = '.env.prod'
