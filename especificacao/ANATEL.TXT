@@ -22,3 +22,76 @@ noticia: #parent-fieldname-text > div
 	[paragrafos] -> #parent-fieldname-text > div > p:nth-child(1-N)
 categoria: #formfield-form-widgets-categoria
 
+----------------------------------------------------------------------------
+
+
+Vamos transformar esse recurso em uma API para o WP conectar a nessa API com objetivo de coletar novos posts, atualizar existentes e deletar se ele estiver marcado para deletar na base original. Vamos seguir os passos:
+
+1- Quando o WP chamar a API, na rota  /getnewposts GET ou POST (o que form mais apropriado), a consulta a base será feita, usando a base news que tem os seguintes campos no mongodb:
+
+import mongoengine as me
+from config.config import NEWS_COLLECTION
+
+class NewsCollection(me.Document):
+    anatel_URL = me.StringField(required=True, unique=True, index=True)
+    anatel_Titulo = me.StringField(required=True)
+    anatel_SubTitulo = me.StringField(required=True)
+    anatel_ImagemChamada = me.StringField(required=True)
+    anatel_Descricao = me.DateTimeField(required=True)
+    anatel_DataPublicacao = me.DateTimeField(required=True)
+    anatel_DataAtualizacao = me.DateTimeField(required=False, default=None)
+    anatel_ImagemPrincipal = me.StringField(required=True)
+    anatel_TextMateria = me.StringField(required=True)
+    anatel_Categoria = me.StringField(required=True)
+    anatel_PostIsRemoved = me.BooleanField(required=True, default=False)
+    anatel_ErrorToFix = me.BooleanField(required=True, default=False)
+    anatel_ErrorDescription = me.StringField(required=False, default=None)
+    anatel_ErrorDate = me.DateTimeField(required=False, default=None)
+    wordpressPostId = me.StringField( required=False, default=None)
+    wordpress_DataPublicacao = me.DateTimeField(required=False, default=None)
+    wordpress_AtualizacaoDetected = me.BooleanField(required=False, default=None)
+    wordpress_DataAtualizacao = me.DateTimeField(required=False, default=None)
+    mailchimpSent = me.BooleanField(required=False, default=None)
+    mailchimp_DataEnvio = me.DateTimeField(required=False, default=None)
+    
+    meta = {
+        'collection': NEWS_COLLECTION
+    }
+
+O mongoengine faz atualmente a seguinte consulta:
+
+documents = NewsCollection.objects(Q(wordpressPostId__exists=False) | Q(wordpressPostId="")).order_by('-anatel_DataPublicacao')
+
+Só que existe o campo anatel_DataAtualizacao, se este campo tiver uma data maior que anatel_DataPublicacao, o post precisa ser atualizado ao invés de criado. E também não pode subir posts com anatel_ErrorToFix = True
+
+E também existe um campo anatel_PostIsRemoved que se tiver true é para mover para lixeira o post no blog
+
+Bom A analise será post por post. Se o post foi criado/atualizado ou deletado e na base mongo wordpress_DataAtualizacao for atualizadea, para aquele post retona sucesso da classe 200. E deverá retornar o ID do post no wordpress e atualizar wordpress_DataPublicacao, caso esteja vazio, ou wordpress_DataAtualizacao caso for uma atualização. Esse campo wordpress_AtualizacaoDetected está deprecated.
+
+Se em um post em específico der um erro, retorna erro da classe 500,grava na base mongo:  atualiza anatel_ErrorToFix=True, anatel_ErrorDescription=[descrição completa do erro], anatel_ErrorDate=[Dta do Erro]
+
+Como existem uma biblioteca chamada python-wordpress-xmlrpc, vamos trabalhar com ela.
+
+Pela definição da Tabela NEWS_COLLECTION você percebe uma série de campos obrigatórios e opcionais. Os obrigatórios se não estiverem preenchidos você lança um erro também e seta errotofix e explica o motivo.
+
+anatel_Titulo, anatel_TextMateria e anatel_DataPublicacao são os campos de um post padrão WordPress. anatel_DataPublicacao do banco de dados deverá ser o mesmo no wordpress. Explicando em outras palavras, ao cadastrar o post ele não é NOW() na data de publicanção, ele é a data do campo anatel_DataPublicacao.
+
+Os campos restantes são metadados para quando eu for montar o modelo do post poder usar ele, tais como anatel_ImagemChamada, anatel_Descricao, etc
+
+São metadadados:
+
+    anatel_URL 
+    anatel_SubTitulo 
+    anatel_ImagemChamada 
+    anatel_Descricao 
+    anatel_DataAtualizacao 
+    anatel_ImagemPrincipal 
+    anatel_Categoria 
+
+2 - O plugin PHP
+
+ Qual o objetivo o plugin anatelnews.zip: 
+
+ 1 - Cadastrar o token caso seja necessário a criação de um tocken para identificar o usuário por segurança. Podemos usar o JWTAPI e quando o WP for requisita descriptografa e compara com WORDPRESS_USER e WORDPRESS_PASSWORD de .env
+ 2 - Na tela de configuirações do AnatelNews, ter a opção de ocultar os posts da categoria selecionada (item 3)
+ 3 - Selecionar a categoria a qual os posts serão cadastrados. Se o usuário resolver alterar a categoria os Posts até então continuam na categoria onde estavam. Só os novos novos serão cadastrados na nova categoria
