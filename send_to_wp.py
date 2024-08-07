@@ -1,11 +1,14 @@
 import os
-from wordpress_xmlrpc import Client, WordPressPost
-from wordpress_xmlrpc.methods.posts import NewPost
-from wordpress_xmlrpc.methods.taxonomies import GetTerms
+import requests
+import json
 from datetime import datetime
 from mongoengine import Q
 import mongoengine as me
+from dotenv import load_dotenv
 from config import env
+
+# Carregar variáveis de ambiente do arquivo .env.local
+load_dotenv('.env.local')
 
 # Conectar ao MongoDB usando variáveis de ambiente
 MONGO_URI = os.getenv('MONGO_URI')
@@ -14,21 +17,28 @@ DB_NAME = os.getenv('DB_NAME')
 me.connect(DB_NAME, host=MONGO_URI)
 
 # Definir as coleções
+NEWS_COLLECTION = os.getenv('NEWS_COLLECTION')
+NEWS_COLLECTION_NOT_POSTED = os.getenv('NEWS_COLLECTION_NOT_POSTED')
 from schemas.news_collection import NewsCollection
 
 # Conectar ao WordPress
-WORDPRESS_URL = os.getenv('WORDPRESS_URL')
+WORDPRESS_URL = os.getenv('WORDPRESS_URL').strip()  # Remove espaços em branco
 WORDPRESS_USER = os.getenv('WORDPRESS_USER')
 WORDPRESS_PASSWORD = os.getenv('WORDPRESS_PASSWORD')
+JWT_TOKEN = os.getenv('JWT_TOKEN')
 
-client = Client(WORDPRESS_URL, WORDPRESS_USER, WORDPRESS_PASSWORD)
+headers = {
+    'Authorization': f'Bearer {JWT_TOKEN}',
+    'Content-Type': 'application/json'
+}
 
 # Obter a ID da categoria "Anatel News"
 def get_category_id(category_name):
-    categories = client.call(GetTerms('category'))
+    response = requests.get(f"{WORDPRESS_URL}/wp-json/wp/v2/categories", headers=headers)
+    categories = response.json()
     for category in categories:
-        if category.name == category_name:
-            return category.id
+        if category['name'] == category_name:
+            return category['id']
     return None
 
 # ID da categoria "Anatel News"
@@ -36,28 +46,32 @@ CATEGORY_ID = get_category_id('Anatel News')
 
 # Função para enviar dados para o WordPress
 def send_to_wordpress(post):
-    wp_post = WordPressPost()
-    wp_post.title = post['title']
-    wp_post.content = post['content']
-    wp_post.post_status = 'publish'
-    wp_post.date = post['date']
-    wp_post.terms_names = {'category': ['Anatel News']}  # Associa a categoria pelo nome
-    wp_post.custom_fields = [
-        {'key': 'anatel_URL', 'value': post['meta']['anatel_URL']},
-        {'key': 'anatel_Titulo', 'value': post['meta']['anatel_Titulo']},
-        {'key': 'anatel_SubTitulo', 'value': post['meta']['anatel_SubTitulo']},
-        {'key': 'anatel_ImagemChamada', 'value': post['meta']['anatel_ImagemChamada']},
-        {'key': 'anatel_Descricao', 'value': post['meta']['anatel_Descricao']},
-        {'key': 'anatel_DataPublicacao', 'value': post['meta']['anatel_DataPublicacao']},
-        {'key': 'anatel_DataAtualizacao', 'value': post['meta']['anatel_DataAtualizacao']},
-        {'key': 'anatel_ImagemPrincipal', 'value': post['meta']['anatel_ImagemPrincipal']},
-        {'key': 'anatel_TextMateria', 'value': post['meta']['anatel_TextMateria']},
-        {'key': 'anatel_Categoria', 'value': post['meta']['anatel_Categoria']},
-        {'key': 'wordpress_DataPublicacao', 'value': post['meta']['wordpress_DataPublicacao']},
-        {'key': 'wordpress_DataAtualizacao', 'value': post['meta']['wordpress_DataAtualizacao']},
-        {'key': 'mailchimp_DataEnvio', 'value': post['meta']['mailchimp_DataEnvio']}
-    ]
-    return client.call(NewPost(wp_post))
+    wp_post = {
+        'title': post['title'],
+        'content': post['content'],
+        'status': 'publish',
+        'date': post['date'],
+        'categories': [CATEGORY_ID],  # Associa a categoria pelo ID
+        'meta': {
+            'anatel_URL': post['meta']['anatel_URL'],
+            'anatel_Titulo': post['meta']['anatel_Titulo'],
+            'anatel_SubTitulo': post['meta']['anatel_SubTitulo'],
+            'anatel_ImagemChamada': post['meta']['anatel_ImagemChamada'],
+            'anatel_Descricao': post['meta']['anatel_Descricao'],
+            'anatel_DataPublicacao': post['meta']['anatel_DataPublicacao'],
+            'anatel_DataAtualizacao': post['meta']['anatel_DataAtualizacao'],
+            'anatel_ImagemPrincipal': post['meta']['anatel_ImagemPrincipal'],
+            'anatel_TextMateria': post['meta']['anatel_TextMateria'],
+            'anatel_Categoria': post['meta']['anatel_Categoria'],
+            'wordpress_DataPublicacao': post['meta']['wordpress_DataPublicacao'],
+            'wordpress_DataAtualizacao': post['meta']['wordpress_DataAtualizacao'],
+            'mailchimp_DataEnvio': post['meta']['mailchimp_DataEnvio']
+        }
+    }
+    response = requests.post(f"{WORDPRESS_URL}/wp-json/wp/v2/posts", headers=headers, data=json.dumps(wp_post))
+    if response.status_code != 201:
+        print(f"Erro ao criar post: {response.json()}")
+    return response.json()
 
 # Função para converter e enviar dados
 def convert_and_send_fields():
@@ -115,9 +129,9 @@ def convert_and_send_fields():
         response = send_to_wordpress(data)
 
         # Verificar se a resposta contém o ID do post
-        if response and hasattr(response, 'id'):
+        if response and 'id' in response:
             # Atualiza o post com o ID do post no WordPress para evitar duplicidade
-            doc.wordpressPostId = str(response.id)
+            doc.wordpressPostId = str(response['id'])
             if doc.wordpress_DataAtualizacao:
                 doc.wordpress_DataAtualizacao = datetime.now()
             else:
