@@ -1,7 +1,7 @@
 import os
 from wordpress_xmlrpc import Client, WordPressPost
 from wordpress_xmlrpc.methods.posts import NewPost
-from wordpress_xmlrpc.methods.users import GetUserInfo
+from wordpress_xmlrpc.methods.taxonomies import GetTerms
 from datetime import datetime
 from mongoengine import Q
 import mongoengine as me
@@ -23,6 +23,17 @@ WORDPRESS_PASSWORD = os.getenv('WORDPRESS_PASSWORD')
 
 client = Client(WORDPRESS_URL, WORDPRESS_USER, WORDPRESS_PASSWORD)
 
+# Obter a ID da categoria "Anatel News"
+def get_category_id(category_name):
+    categories = client.call(GetTerms('category'))
+    for category in categories:
+        if category.name == category_name:
+            return category.id
+    return None
+
+# ID da categoria "Anatel News"
+CATEGORY_ID = get_category_id('Anatel News')
+
 # Função para enviar dados para o WordPress
 def send_to_wordpress(post):
     wp_post = WordPressPost()
@@ -30,6 +41,7 @@ def send_to_wordpress(post):
     wp_post.content = post['content']
     wp_post.post_status = 'publish'
     wp_post.date = post['date']
+    wp_post.terms_names = {'category': ['Anatel News']}  # Associa a categoria pelo nome
     wp_post.custom_fields = [
         {'key': 'anatel_URL', 'value': post['meta']['anatel_URL']},
         {'key': 'anatel_Titulo', 'value': post['meta']['anatel_Titulo']},
@@ -51,7 +63,7 @@ def send_to_wordpress(post):
 def convert_and_send_fields():
     documents = NewsCollection.objects(
         Q(wordpressPostId__exists=False) | Q(wordpressPostId="")
-    ).order_by('-anatel_DataPublicacao')
+    ).order_by('-anatel_DataPublicacao').limit(10)
     for doc in documents:
         anatel_Descricao = doc.anatel_Descricao
         if type(doc.anatel_Descricao) != str:
@@ -102,14 +114,18 @@ def convert_and_send_fields():
 
         response = send_to_wordpress(data)
 
-        # Atualiza o post com o ID do post no WordPress para evitar duplicidade
-        doc.wordpressPostId = str(response.id)
-        if doc.wordpress_DataAtualizacao:
-            doc.wordpress_DataAtualizacao = datetime.now()
-        else:
-            doc.wordpress_DataPublicacao = datetime.now()
+        # Verificar se a resposta contém o ID do post
+        if response and hasattr(response, 'id'):
+            # Atualiza o post com o ID do post no WordPress para evitar duplicidade
+            doc.wordpressPostId = str(response.id)
+            if doc.wordpress_DataAtualizacao:
+                doc.wordpress_DataAtualizacao = datetime.now()
+            else:
+                doc.wordpress_DataPublicacao = datetime.now()
 
-        doc.save()
+            doc.save()
+        else:
+            print("Erro ao enviar dados para o WordPress. Nenhuma atualização feita no MongoDB.")
 
 if __name__ == '__main__':
     convert_and_send_fields()
