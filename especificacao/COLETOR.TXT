@@ -1,8 +1,130 @@
 ESPECIFICAÇÃO Anatel News.
 
-1 - O que é: O Anatel News é plugin WordPress bem simples que vai se conectar em uma API para coletar as notícias mais recentes publicadas na Anatel. Será uma feita uma carga inicial com um número maior de notícias e a API irá consultar 3X por dia em busca de novas notícias. Serão consultados os ultimos N posts (Por exemplo N = 60), para conferir se houve atualização no texto do mesmo para que essas modificações sejam, juntamente com as novas notícias, atualiadas e nocaso da novas notícias criadas
 
-Logo a Api ela terá um módulo que rodará via crontab no servidor da API, escrito em Python chamado: collect_news.py
+-------------------------------------------------
+
+ANTES DE COMEÇAR. 
+
+-------------------------------------------------
+
+Árvore de diretórios e arquivos:
+
+.
+├── config
+│   ├── __pycache__
+│   ├── config.py
+│   ├── env.py
+│   ├── requirements.txt
+├── docker
+├── especificacao
+├── log
+│   ├── anatelnews.log
+├── schemas
+│   ├── __pycache__
+│   ├── news_collection_not_posted.py
+│   ├── news_collection.py
+├── shell
+├── utils
+├── wp-plugin
+│   ├── .env.local
+│   ├── .env.prod
+│   ├── .env.staging
+├── .gitignore
+├── api.py
+├── collect_news.py
+├── LICENSE
+├── README.md
+├── send_to_wp.py
+
+
+Existem várias variáveis de ambiente. E dependendo do ambiente: local, staging e producao, um arquivo env será carregado, de acordo com o código que se encontra em ./config/env.py, ele é chamado nos outros scripts/modulos/rotas chamando ele: from config import env
+
+Segue seu código:
+
+
+localização: ./config/env.py
+
+import os
+from dotenv import load_dotenv
+
+# Defina a variável de ambiente `ENVIRONMENT` para o ambiente desejado, por exemplo:
+# export ENVIRONMENT=local
+# export ENVIRONMENT=prod
+# export ENVIRONMENT=staging
+
+environment = os.getenv('ENVAN', 'staging')  # Padrão para 'local' se não estiver definido
+
+if environment == 'prod':
+    dotenv_path = '.env.prod'
+elif environment == 'staging':
+    dotenv_path = '.env.staging'
+else:
+    dotenv_path = '.env.local'
+
+load_dotenv(dotenv_path)
+
+-----------------------------------------------------
+.env.staging, exemplo
+
+MONGO_URI='mongodb://localhost:27017/?retryWrites=true&w=majority'
+DB_NAME=anatelnews
+NEWS_COLLECTION=news
+LOG_FILE=./log/anatelnews.log
+NEWS_URL=https://www.gov.br/anatel/pt-br/assuntos/noticias?b_start:int=0
+WEBHOOK_TOKEN=1GmfvbdzrV6XckpuAELB7l1z4o9cbSl2QLhUkD1wmF0
+WORDPRESS_URL=https://dev.topdigital.com.br
+
+JWT_TOKEN='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2Rldi50b3BkaWdpdGFsLmNvbS5iciIsImlhdCI6MTcyMzAyMDEwMywibmJmIjoxNzIzMDIwMTAzLCJleHAiOjE3MjM2MjQ5MDMsImRhdGEiOnsidXNlciI6eyJpZCI6IjcifX19.3njedJAy1901D5GSdX0P5xu_5Vx95PFXidLVxCrGarU'
+
+Algumas variáveis acima são para o WP conectar autenticado na API
+
+------------------------------------------------------
+Collection 
+
+Seque a especificação da collection que irá armazenar as notícias que serão consumidas pelo plugin WP
+
+import mongoengine as me
+from config.config import NEWS_COLLECTION
+
+class NewsCollection(me.Document):
+    anatel_URL = me.StringField(required=True, unique=True, index=True)
+    anatel_Titulo = me.StringField(required=True)
+    anatel_SubTitulo = me.StringField(required=True)
+    anatel_ImagemChamada = me.StringField(required=True)
+    anatel_Descricao = me.DateTimeField(required=True)
+    anatel_DataPublicacao = me.DateTimeField(required=True)
+    anatel_DataAtualizacao = me.DateTimeField(required=False, default=None)
+    anatel_ImagemPrincipal = me.StringField(required=True)
+    anatel_TextMateria = me.StringField(required=True)
+    anatel_Categoria = me.StringField(required=True)
+    anatel_PostIsRemoved = me.BooleanField(required=True, default=False)
+    anatel_ErrorToFix = me.BooleanField(required=True, default=False)
+    anatel_ErrorDescription = me.StringField(required=False, default=None)
+    anatel_ErrorDate = me.DateTimeField(required=False, default=None)
+    anatel_lastOnechecked = me.DateTimeField(required=False, default=None)
+    wordpressPostId = me.StringField(required=False, default=None)
+    wordpress_DataPublicacao = me.DateTimeField(required=False, default=None)
+    wordpress_AtualizacaoDetected = me.BooleanField(required=False, default=None)
+    wordpress_DataAtualizacao = me.DateTimeField(required=False, default=None)
+    mailchimpSent = me.BooleanField(required=False, default=None)
+    mailchimp_DataEnvio = me.DateTimeField(required=False, default=None)
+
+    meta = {
+        'collection': NEWS_COLLECTION
+    }
+
+
+-----------------------------------------------------
+Anatel News
+
+1 - O que é: O Anatel News é plugin WordPress bem simples que vai se conectar em uma API Flesk para coletar as notícias mais recentes publicadas na Anatel. A API irá consultar 3X por dia em busca de novas notícias. Será um script coletor que usará SELENIUM para realizar o serviço . Serão consultados os ultimos N posts (Por exemplo N = 60), para conferir se houve atualização no texto do mesmo para que essas modificações sejam, juntamente com as novas notícias, atualiadas e no caso da novas notícias criadas. Inclusive se um texto foi removido do site da Anatel, precisa ser removido do WP.
+
+Logo a Api ela terá um script que rodará via crontab no servidor da API, escrito em Python chamado: collect_news.py
+
+----- Basicamente ele vai ler a página inicial: NEWS_URL=https://www.gov.br/anatel/pt-br/assuntos/noticias?b_start:int=0 e a próxima https://www.gov.br/anatel/pt-br/assuntos/noticias?b_start:int=30, troca o "0", pelo "30", são 30 notícias por página. NEWS_URL está em .ENV
+
+
+O código conte do coletor está abaixo: collect_news.py
 
 import os
 import logging
@@ -15,9 +137,7 @@ from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from datetime import datetime
 import requests
-
-# Carregar variáveis de ambiente do arquivo .env
-load_dotenv()
+from config import env
 
 MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = os.getenv('DB_NAME')
@@ -182,74 +302,8 @@ if __name__ == '__main__':
     driver.quit()
 
 
+------------------------------------------------------------------------------------------
 
-Vamos transformar esse recurso em uma API para o WP conectar a nessa API com objetivo de coletar novos posts, atualizar existentes e deletar se ele estiver marcado para deletar na base original. Vamos seguir os passos:
+Como pode ver o código está pronto a até funcionando, mas quis especificar para que você reanalizasse
 
-1- Quando o WP chamar a API, na rota  /getnewposts GET ou POST (o que form mais apropriado), a consulta a base será feita, usando a base news que tem os seguintes campos no mongodb:
-
-import mongoengine as me
-from config.config import NEWS_COLLECTION
-
-class NewsCollection(me.Document):
-    anatel_URL = me.StringField(required=True, unique=True, index=True)
-    anatel_Titulo = me.StringField(required=True)
-    anatel_SubTitulo = me.StringField(required=True)
-    anatel_ImagemChamada = me.StringField(required=True)
-    anatel_Descricao = me.DateTimeField(required=True)
-    anatel_DataPublicacao = me.DateTimeField(required=True)
-    anatel_DataAtualizacao = me.DateTimeField(required=False, default=None)
-    anatel_ImagemPrincipal = me.StringField(required=True)
-    anatel_TextMateria = me.StringField(required=True)
-    anatel_Categoria = me.StringField(required=True)
-    anatel_PostIsRemoved = me.BooleanField(required=True, default=False)
-    anatel_ErrorToFix = me.BooleanField(required=True, default=False)
-    anatel_ErrorDescription = me.StringField(required=False, default=None)
-    anatel_ErrorDate = me.DateTimeField(required=False, default=None)
-    wordpressPostId = me.StringField( required=False, default=None)
-    wordpress_DataPublicacao = me.DateTimeField(required=False, default=None)
-    wordpress_AtualizacaoDetected = me.BooleanField(required=False, default=None)
-    wordpress_DataAtualizacao = me.DateTimeField(required=False, default=None)
-    mailchimpSent = me.BooleanField(required=False, default=None)
-    mailchimp_DataEnvio = me.DateTimeField(required=False, default=None)
-    
-    meta = {
-        'collection': NEWS_COLLECTION
-    }
-
-O mongoengine faz atualmente a seguinte consulta:
-
-documents = NewsCollection.objects(Q(wordpressPostId__exists=False) | Q(wordpressPostId="")).order_by('-anatel_DataPublicacao')
-
-Só que existe o campo anatel_DataAtualizacao, se este campo tiver uma data maior que anatel_DataPublicacao, o post precisa ser atualizado ao invés de criado. E também não pode subir posts com anatel_ErrorToFix = True
-
-E também existe um campo anatel_PostIsRemoved que se tiver true é para mover para lixeira o post no blog
-
-Bom A analise será post por post. Se o post foi criado/atualizado ou deletado e na base mongo wordpress_DataAtualizacao for atualizadea, para aquele post retona sucesso da classe 200. E deverá retornar o ID do post no wordpress e atualizar wordpress_DataPublicacao, caso esteja vazio, ou wordpress_DataAtualizacao caso for uma atualização. Esse campo wordpress_AtualizacaoDetected está deprecated.
-
-Se em um post em específico der um erro, retorna erro da classe 500,grava na base mongo:  atualiza anatel_ErrorToFix=True, anatel_ErrorDescription=[descrição completa do erro], anatel_ErrorDate=[Dta do Erro]
-
-Como existem uma biblioteca chamada python-wordpress-xmlrpc, vamos trabalhar com ela.
-
-Pela definição da Tabela NEWS_COLLECTION você percebe uma série de campos obrigatórios e opcionais. Os obrigatórios se não estiverem preenchidos você lança um erro também e seta errotofix e explica o motivo.
-
-anatel_Titulo, anatel_TextMateria e anatel_DataPublicacao são os campos de um post padrão WordPress. anatel_DataPublicacao do banco de dados deverá ser o mesmo no wordpress. Explicando em outras palavras, ao cadastrar o post ele não é NOW() na data de publicanção, ele é a data do campo anatel_DataPublicacao.
-
-Os campos restantes são metadados para quando eu for montar o modelo do post poder usar ele, tais como anatel_ImagemChamada, anatel_Descricao, etc
-
-São metadadados:
-
-    anatel_URL 
-    anatel_SubTitulo 
-    anatel_ImagemChamada 
-    anatel_Descricao 
-    anatel_DataAtualizacao 
-    anatel_ImagemPrincipal 
-    anatel_Categoria 
-
-2 - O plugin PHP
-
- Qual o objetivo o plugin anatelnews.zip: 
-
- 1 - Cadastrar o token caso seja necessário a criação de um tocken para identificar o usuário por segurança. Podemos usar o JWTAPI e quando o WP for requisita descriptografa e compara com WORDPRESS_USER e WORDPRESS_PASSWORD de .env
- 2 - Na tela de configuirações do AnatelNews, ter a opção de ocultar os posts da categoria selecionada (item 3)
- 3 - Selecionar a categoria a qual os posts serão cadastrados. Se o usuário resolver alterar a categoria os Posts até então continuam na categoria onde estavam. Só os novos novos serão cadastrados na nova categoria
+Vamos iniciar com a coleta.  Algo que vou pedir é. Você vai rodar os últimos 60. Cadastrar os novos, se data de atualização estiver maior que data de publicação é para atualizar e pode ser que a data de publicação esteja maior que uma data de publicação que já exista então é para atualizar

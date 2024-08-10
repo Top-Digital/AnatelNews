@@ -16,6 +16,7 @@ class NewsCollection(me.Document):
     anatel_ErrorToFix = me.BooleanField(required=True, default=False)
     anatel_ErrorDescription = me.StringField(required=False, default=None)
     anatel_ErrorDate = me.DateTimeField(required=False, default=None)
+    anatel_lastOnechecked = me.DateTimeField(required=False, default=None)
     wordpressPostId = me.StringField(required=False, default=None)
     wordpress_DataPublicacao = me.DateTimeField(required=False, default=None)
     wordpress_AtualizacaoDetected = me.BooleanField(required=False, default=None)

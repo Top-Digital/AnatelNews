@@ -23,8 +23,6 @@ from schemas.news_collection import NewsCollection
 
 # Conectar ao WordPress
 WORDPRESS_URL = os.getenv('WORDPRESS_URL').strip()  # Remove espaços em branco
-WORDPRESS_USER = os.getenv('WORDPRESS_USER')
-WORDPRESS_PASSWORD = os.getenv('WORDPRESS_PASSWORD')
 JWT_TOKEN = os.getenv('JWT_TOKEN')
 
 headers = {
@@ -48,11 +46,11 @@ CATEGORY_ID = get_category_id('Anatel News')
 def send_to_wordpress(post):
     wp_post = {
         'title': post['title'],
-        'content': post['content'],
+        'content': post['content'],  # Apenas o conteúdo do post
         'status': 'publish',
         'date': post['date'],
         'categories': [CATEGORY_ID],  # Associa a categoria pelo ID
-        'meta': {
+        'meta': {  # Metadados a serem enviados
             'anatel_URL': post['meta']['anatel_URL'],
             'anatel_Titulo': post['meta']['anatel_Titulo'],
             'anatel_SubTitulo': post['meta']['anatel_SubTitulo'],
@@ -105,7 +103,7 @@ def convert_and_send_fields():
 
         data = {
             'title': doc.anatel_Titulo,
-            'content': doc.anatel_TextMateria,
+            'content': doc.anatel_TextMateria,  # Apenas o conteúdo do post
             'date': anatel_DataPublicacao,
             'meta': {
                 'anatel_URL': doc.anatel_URL,
