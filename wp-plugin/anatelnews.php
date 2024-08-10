@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Anatel News
  * Description: Plugin para integrar notícias da Anatel no WordPress.
- * Version: 1.02
+ * Version: 1.03
  * Author: Adriano Alves Dal Cin Costa
  */
 
@@ -12,18 +12,18 @@ if (!defined('ABSPATH')) {
 }
 
 // Incluir arquivos necessários
-require_once plugin_dir_path(__FILE__) . 'includes/custom-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-integration.php';
 require_once plugin_dir_path(__FILE__) . 'includes/register-fields.php';
-require_once plugin_dir_path(__FILE__) . 'includes/display-fields.php';
 require_once plugin_dir_path(__FILE__) . 'includes/ocultar-posts.php';
 require_once plugin_dir_path(__FILE__) . 'includes/category-functions.php';
 
+// Remover funcionalidades desnecessárias
+remove_action('add_meta_boxes', 'anatelnews_add_custom_box');
+remove_action('save_post', 'anatelnews_save_postdata');
+remove_filter('the_content', 'anatelnews_display_custom_fields');
+
 // Adicionar hooks necessários
-add_action('add_meta_boxes', 'anatelnews_add_custom_box');
-add_action('save_post', 'anatelnews_save_postdata');
 add_action('admin_menu', 'anatelnews_create_menu');
-add_action('the_content', 'anatelnews_display_custom_fields');
 
 // Função para criar o menu de configurações do plugin
 function anatelnews_create_menu() {
@@ -92,3 +92,4 @@ function anatelnews_register_settings() {
     register_setting('anatelnews-settings-group', 'anatelnews_category');
     register_setting('anatelnews-settings-group', 'anatelnews_ocultar_posts');
 }
+?>

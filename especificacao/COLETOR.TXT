@@ -306,4 +306,7 @@ if __name__ == '__main__':
 
 Como pode ver o código está pronto a até funcionando, mas quis especificar para que você reanalizasse
 
-Vamos iniciar com a coleta.  Algo que vou pedir é. Você vai rodar os últimos 60. Cadastrar os novos, se data de atualização estiver maior que data de publicação é para atualizar e pode ser que a data de publicação esteja maior que uma data de publicação que já exista então é para atualizar
+Vamos iniciar com a coleta.  Algo que vou pedir é. Você vai rodar os últimos 60. Cadastrar os novos, se data de atualização estiver maior que data de publicação é para atualizar e pode ser que a data de publicação esteja maior que uma data de publicação que já exista então é para atualizar. Algumas modificações principalmente para identificar URLS removidas, elas são únicas no sistema. Existe um campo  anatel_lastOnechecked = me.DateTimeField(required=False, default=None), toda URL é checada se já existe no banco e se alguma ação precisa ser feita,
+se anatel_lastOnechecked não foi atualizada para algum campo dentro dos últimos 60 campos, significa que ela foi removida então anatel_PostIsRemoved será setado como True
+
+Vamos trabalhar?
