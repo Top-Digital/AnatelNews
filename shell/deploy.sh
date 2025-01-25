@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Diretório local onde os arquivos do plugin estão localizados
-LOCAL_PLUGIN_DIR="/home/adriano/dev/AnatelNews/wp-plugin"
-LOCAL_WP_PLUGIN_DIR="/home/adriano/dev/AnatelNews/docker/wordpress_data/wp-content/plugins"
+LOCAL_PLUGIN_DIR="/home/adriano/dev/anatelnews/wp-plugin"
+LOCAL_WP_PLUGIN_DIR="/home/adriano/dev/anatelnews/docker/wp_data/wp-content/plugins"
 DESTINATION_ZIP_DIR="/home/adriano/Downloads"
 
 # Nome do arquivo .zip do plugin
@@ -19,7 +19,6 @@ cd "$LOCAL_WP_PLUGIN_DIR" || {
   echo "Erro ao acessar o diretório $LOCAL_WP_PLUGIN_DIR"
   exit 1
 }
-blog
 
 # Remover arquivos antigos do plugin
 echo "Removendo arquivos antigos do plugin..."
